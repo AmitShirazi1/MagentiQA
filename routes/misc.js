@@ -271,6 +271,10 @@ router.post('/import/save-batch', requireAuth, async (req, res) => {
 });
 
 // ── Export ────────────────────────────────────────────────────────────────────
+// Version export (A): download the PDF report — every verification with its
+// pass/fail results plus the version approval. The two Drive exports live in
+// routes/google.js: (B) the same PDF report → Drive (POST /google/upload-report)
+// and (C) blank verification templates → Drive (POST /google/export-version).
 
 router.get('/export/report/:versionId', requireAuth, async (req, res) => {
   try {

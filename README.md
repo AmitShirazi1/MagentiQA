@@ -66,7 +66,9 @@ lib/
   audit.js              Audit-trail writer (filters to verification-relevant events)
   signature.js          HMAC-SHA256 electronic signatures (sign / verify)
   cleanup.js            Startup + daily sweeps: orphan evidence files + dangling version-test links
-  pdf.js                Verification report generator (Puppeteer → PDF, HTML fallback)
+  pdf.js                Verification report generator (Puppeteer → PDF, HTML
+                        fallback) — Magentiq Eye-branded; cover, summary stats,
+                        results overview, per-verification detail incl. setups
   setups.js             Shared replace-on-save persistence for a tracked test's setups
   backup.js             Full snapshot (consistent DB + storage + all code) → backups/*.zip
   google.js             Drive/Docs client (OAuth, list, download, folder/file upsert)
@@ -176,10 +178,10 @@ All routes are under `/api` and require a session cookie (log in first), except
 | Executions | `GET/POST /executions` · `GET /executions/:id` · `POST /executions/:id/sign` · `POST /executions/bulk-sign` · `GET /executions/:id/verify` |
 | Evidence | `GET/POST /executions/:id/evidence` · `GET .../:evId/download` · `DELETE .../:evId` |
 | Import | `POST /import/preview` · `POST /import/folder` · `POST /import/save` · `POST /import/save-batch` |
-| Export | `GET /export/report/:vid` (PDF) · `GET /export/tests` · `GET /export/version/:vid` |
+| Export | **(A)** `GET /export/report/:vid` — download the PDF report (results + approvals) · `GET /export/tests` · `GET /export/version/:vid` |
 | Backup | `POST /backup` (ADMIN, optional `{ label }`) · `GET /backups` · `GET /backups/:name/download` |
 | Misc | `GET /audit` · `GET /audit/:id` · `GET /users` · `PUT /users/:id` · `GET/POST/PUT /approvals` (version sign-off: `POST {scope:'VERSION',versionId}`) · `GET /dashboard/:vid` · `GET/POST /templates` |
-| Google Drive | `GET /google/status` · `GET /google/folders` · `POST /google/sync` (import) · `POST /google/upload-report` (PDF) · `POST /google/export-version` (verifications → Drive) |
+| Google Drive | `GET /google/status` · `GET /google/folders` · `POST /google/sync` (import) · **(B)** `POST /google/upload-report` (PDF report → Drive) · **(C)** `POST /google/export-version` (blank templates → Drive) |
 | CI | `POST /executions/ci` (API-key auth, see below) |
 
 ### CI/CD Webhook
@@ -250,22 +252,26 @@ Sync:   Drive API lists the folder recursively → native Google Docs are read a
         path become its tags (Features/Login/MyTest → tag "Login").
         Shared folders and shortcuts are supported: shortcuts resolve to their
         targets, and the folder browser has a "Shared with me" entry.
-Upload: generate a version PDF report → push it back into the Drive folder
-        (Drive files.create) — "PDF → Drive" button on every version
-Export: "Export to Drive" on a version writes every verification back as a
-        .docx — the exact inverse of import: a verification's tags become the
-        nested subfolders containing it, and setup-tracked verifications also get
-        their "<base> test tracker.xlsx". The tracker preserves the original
-        column order and re-creates the `Status` and `Tester Name` columns from
-        each setup's recorded verdict and signer (blank for setups not yet run);
-        the .docx's Result/Comment/Signature fields are left blank. Files are
-        upserted (an existing same-name file in the same subfolder is updated in
-        place), so re-exporting an unchanged version reproduces the original
-        folder. The folder picker defaults to GOOGLE_IMPORT_FOLDER. All exported
-        file and folder names are lowercased; the file stem follows the import
-        filename when known (recorded as `sourceFile`), else the title. Generated
-        trackers place the column headers on row 8 (setup rows from row 9),
-        matching the source layout.
+(B) Report → Drive: generate the version's PDF report (results + approvals) and
+        push it into a chosen Drive folder (Drive files.create) — "Report → Drive"
+        button on every version. The picker defaults to GOOGLE_EXPORT_FOLDER.
+(C) Templates → Drive: "Templates → Drive" writes every verification back as a
+        blank .docx TEMPLATE (no pass/fail results) — the exact inverse of import:
+        a verification's tags become the nested subfolders containing it, and
+        setup-tracked verifications also get their "<base> test tracker.xlsx". The
+        tracker preserves the original column order and re-creates the `Status`
+        and `Tester Name` columns from each setup's recorded verdict and signer
+        (blank for setups not yet run); the .docx's Result/Comment/Signature
+        fields are left blank. Files are upserted (an existing same-name file in
+        the same subfolder is updated in place), so re-exporting an unchanged
+        version reproduces the original folder. The picker defaults to
+        GOOGLE_IMPORT_FOLDER. All exported file and folder names are lowercased;
+        the file stem follows the import filename when known (recorded as
+        `sourceFile`), else the title. Generated trackers place the column headers
+        on row 8 (setup rows from row 9), matching the source layout.
+
+(The PDF report itself can also be downloaded directly — export (A),
+`GET /export/report/:vid` — without involving Drive.)
 ```
 
 Tokens are stored locally in `data/google-tokens.json`; the only network calls

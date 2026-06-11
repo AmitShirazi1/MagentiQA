@@ -86,7 +86,7 @@ const API = {
   importPreview:   (form) => API.upload('/import/preview', form),
   importSave:      (data) => API.post('/import/save', data),
   importSaveBatch: (data) => API.post('/import/save-batch', data),
-  exportReport:  (vid)      => `/api/export/report/${vid}`,
+  exportReport:  (vid)      => `/api/export/report/${vid}`,   // (A) download PDF report (results + approvals)
   exportTests:   ()         => '/api/export/tests',
   exportVersion: (vid)      => `/api/export/version/${vid}`,
 
@@ -102,8 +102,8 @@ const API = {
     folderInfo:   (id)           => API.get('/google/folder-info' + toQuery({ id })),
     sync:         (folder)       => API.post('/google/sync', { folder }),
     disconnect:   ()             => API.post('/google/disconnect'),
-    uploadReport: (vid, folder)  => API.post('/google/upload-report', { versionId: vid, folder }),
-    exportVersion:(vid, folder)  => API.post('/google/export-version', { versionId: vid, folder }),
+    uploadReport: (vid, folder)  => API.post('/google/upload-report', { versionId: vid, folder }),     // (B) PDF report → Drive
+    exportVersion:(vid, folder)  => API.post('/google/export-version', { versionId: vid, folder }),    // (C) blank templates → Drive
   },
 };
 

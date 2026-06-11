@@ -158,7 +158,8 @@ passed · % failed”* label at its left edge (hover any segment for its count).
 
 From a version you can also:
 - **Add verifications** to the version (from the library).
-- **Export** a PDF report, or **Export to Drive** (see below).
+- **Download the PDF report**, **export the report to Drive**, or **export blank
+  templates to Drive** — three separate buttons (see [Reports & exports](#13-reports--exports)).
 - **Execute** any verification, or **View** its full content and last results.
 - Set the version's workflow status.
 
@@ -262,20 +263,21 @@ can read them directly — no manual download.
    Drive are downloaded and run through the same parser as a manual import.
    Subfolder names along each file's path become tags.
 
-You can also push a generated version PDF **back into Drive** with the
-**PDF → Drive** button on a version.
+**Export the PDF report to Drive** — the **Report → Drive** button on a version
+uploads the version's full PDF report (results + approvals) into a Drive folder
+you choose; the picker opens at the configured export folder by default.
 
-**Export verifications back to Drive** — the inverse of import. On a version,
-**Export to Drive** writes every verification as a `.docx`: its **tags become the
-nested folders** that contain it, and setup-tracked verifications also get their
-`… test tracker.xlsx`. The `.docx`'s steps and fields are filled in while its
-Results, Comments and signature fields are left blank. The tracker keeps your
-columns in their original order and **fills the Status and Tester Name columns
-from how each setup was run** — the pass/fail you recorded and the name that
-signed it (blank for setups not yet run). You choose the destination (it defaults
-to your import folder); existing files with the same name are **updated in
-place**, so re-exporting an unchanged version leaves the folder identical, while
-edits and new verifications show up at export time.
+**Export templates back to Drive** — the **Templates → Drive** button is the
+inverse of import. It writes every verification as a blank `.docx` **template**
+(no pass/fail results): its **tags become the nested folders** that contain it,
+and setup-tracked verifications also get their `… test tracker.xlsx`. The `.docx`'s
+steps and fields are filled in while its Results, Comments and signature fields are
+left blank. The tracker keeps your columns in their original order and **fills the
+Status and Tester Name columns from how each setup was run** — the pass/fail you
+recorded and the name that signed it (blank for setups not yet run). You choose the
+destination (it defaults to your import folder); existing files with the same name
+are **updated in place**, so re-exporting an unchanged version leaves the folder
+identical, while edits and new verifications show up at export time.
 
 > Connecting Drive requires server-side OAuth credentials in `.env`. If the Drive
 > tab says it's not configured, ask your administrator — setup steps are in the
@@ -354,9 +356,26 @@ version was verified by all the verifications in its report.
 
 ## 13. Reports & exports
 
-- **Version PDF report:** from a project version, **Export** produces an
-  audit-ready PDF (rendered via a headless browser; falls back to a self-contained
-  HTML file if no browser is available). You can also push it to Google Drive.
+A version has **three distinct exports** — the buttons appear both on the version
+page and on each version card in a project:
+
+- **(A) Download PDF report** — the audit-ready PDF for the version: a
+  Magentiq Eye-branded cover, summary statistics, a results overview, and a detail
+  page per verification (its steps and, for setup-tracked verifications, its setups
+  with each setup's verdict and tester) plus the version approval. Rendered via a
+  headless browser, falling back to a self-contained HTML file if none is
+  available. This is the report **with** pass/fail results.
+- **(B) Export report → Drive** — the same PDF report, uploaded to a Google Drive
+  folder you choose (the picker opens at the configured export folder by default).
+- **(C) Export templates → Drive** — every verification written back to Drive as a
+  blank **template** (`.docx`, plus the `.xlsx` tracker for setup-tracked ones)
+  with **no** results — for reuse as the canonical source set. See
+  [Google Drive sync](#9-google-drive-sync-optional) for details.
+
+The PDF's summary statistics always show **Total, Passed, Partially Passed** and
+**Failed**; **In Progress** (shown in blue) and **Not Started** appear only when
+they aren't zero.
+
 - **All verifications (JSON):** Admin page → **Data Export** downloads the entire
   verification library as JSON for backup or external processing.
 - **Single version (JSON):** a full export of one version including its tests,

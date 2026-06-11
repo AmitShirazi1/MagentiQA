@@ -209,7 +209,11 @@ router.post('/sync', requireAuth, async (req, res) => {
   }
 });
 
-// ── Upload report: generate version PDF and push it to Drive ───────────────
+// ── Version export (B): the PDF report → Drive ─────────────────────────────
+// Generates the same executed PDF report as the (A) download and uploads it to
+// the chosen Drive folder (default GOOGLE_EXPORT_FOLDER). This is the report,
+// WITH results — distinct from (C) export-version below, which writes blank
+// templates.
 
 router.post('/upload-report', requireAuth, async (req, res) => {
   try {
@@ -237,13 +241,14 @@ router.post('/upload-report', requireAuth, async (req, res) => {
   }
 });
 
-// ── Export a version's verifications to Drive (inverse of folder import) ──────
-// Each verification → one clean .docx; its `tags` become the nested subfolders
-// containing it (the exact inverse of the import's folder→tags rule). Setup-
-// tracked verifications also get their paired "<base> test tracker.xlsx".
-// Files are upserted: an existing same-name file in the same subfolder is
-// updated in place, otherwise it's created — so re-exporting an unchanged
-// version reproduces the original folder.
+// ── Version export (C): blank verification templates → Drive ──────────────────
+// The inverse of a folder import, and distinct from the (B) PDF report upload:
+// this writes each verification as a clean .docx TEMPLATE (no pass/fail results),
+// its `tags` becoming the nested subfolders (the exact inverse of import's
+// folder→tags rule). Setup-tracked verifications also get their paired "<base>
+// test tracker.xlsx". Files are upserted: an existing same-name file in the same
+// subfolder is updated in place — so re-exporting an unchanged version reproduces
+// the original folder.
 router.post('/export-version', requireAuth, async (req, res) => {
   try {
     const { versionId, folder } = req.body;

@@ -113,8 +113,9 @@ function renderVersionTimelineItem(v, projectId, isLatest) {
           </div>
           <div class="btn-row" onclick="event.stopPropagation()">
             <button class="btn-secondary btn-sm" onclick="${open}">Open ${ICONS.arrowR}</button>
-            <button class="btn-ghost btn-sm" title="Export PDF report" onclick="exportVersionReport('${v.id}')">${ICONS.download} PDF</button>
-            <button class="btn-ghost btn-sm" title="Upload PDF report to Google Drive" onclick="uploadReportToDrive('${v.id}', this)">${ICONS.upload} Drive</button>
+            <button class="btn-ghost btn-sm" title="Download the PDF report (results + approvals)" onclick="downloadReportPdf('${v.id}')">${ICONS.download} PDF report</button>
+            <button class="btn-ghost btn-sm" title="Export the PDF report to Google Drive" onclick="exportReportPdfToDrive('${v.id}', this)">${ICONS.upload} Report → Drive</button>
+            <button class="btn-ghost btn-sm" title="Export blank verification templates (no results) to Google Drive" onclick="exportTemplatesToDrive('${v.id}', this)">${ICONS.upload} Templates → Drive</button>
           </div>
         </div>
         <div class="version-stats">
@@ -248,35 +249,37 @@ async function createVersion(projectId) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-function exportVersionReport(versionId) {
+// MagentiQA has three distinct version exports — keep them clearly separate:
+//   (A) downloadReportPdf        — download the PDF report (results + approvals)
+//   (B) exportReportPdfToDrive   — push that same PDF report to a Drive folder
+//   (C) exportTemplatesToDrive   — push the verifications as blank .docx/.xlsx
+//                                  TEMPLATES (no results) to a Drive folder
+// (A) and (B) are the executed report; (C) is the un-executed template set.
+
+// (A) Download the PDF report (every verification with its pass/fail + approvals).
+function downloadReportPdf(versionId) {
   window.open(API.exportReport(versionId), '_blank');
 }
 
-// Export every verification in a version to Google Drive as clean .docx
-// templates — the inverse of a Drive folder import (tags become subfolders).
-async function exportVersionToDrive(versionId, btn) {
+// (B) Export that same PDF report to Google Drive, into a folder the user picks.
+// The picker opens at the configured export default (GOOGLE_EXPORT_FOLDER).
+async function exportReportPdfToDrive(versionId, btn) {
   try {
     const st = await API.google.status();
     if (!st.connected) {
       toast('Connect Google Drive first (Import page → Google Drive tab)', 'error');
       return;
     }
-    // Picker opens at the import default (where verifications are imported from).
     openDriveFolderPicker({
-      title: 'Export verifications to Google Drive',
-      startFolder: st.importFolder,
+      title: 'Export PDF report to Google Drive',
+      startFolder: st.exportFolder,
       onSelect: async ({ id, pathNames }) => {
-        const ok = await confirmDialog('Export verifications to Drive?',
-          `This writes each verification in this version as a clean .docx (its tags become subfolders, setup-tracked verifications also get their .xlsx tracker) into “${pathNames}”. Existing files with the same name are updated in place. Continue?`,
-          { confirmLabel: 'Export', danger: false });
-        if (!ok) return;
         const original = btn ? btn.innerHTML : '';
         if (btn) { btn.disabled = true; btn.innerHTML = 'Exporting…'; }
         try {
-          const r = await API.google.exportVersion(versionId, id);
-          let msg = `Exported to ${pathNames}: ${r.created} created, ${r.updated} updated`;
-          if (r.errors?.length) msg += `, ${r.errors.length} failed`;
-          toast(msg, r.errors?.length ? 'info' : 'success');
+          const result = await API.google.uploadReport(versionId, id);
+          toast(`PDF report exported to ${pathNames}: ${result.file.name}`, 'success');
+          if (result.file.webViewLink) window.open(result.file.webViewLink, '_blank');
         } catch (err) {
           toast(err.message, 'error');
         } finally {
@@ -289,28 +292,35 @@ async function exportVersionToDrive(versionId, btn) {
   }
 }
 
-async function uploadReportToDrive(versionId, btn) {
+// (C) Export every verification as a blank TEMPLATE (no pass/fail) to Google
+// Drive — the inverse of a Drive folder import (tags become subfolders). The
+// picker opens at the import default (where verification templates live).
+async function exportTemplatesToDrive(versionId, btn) {
   try {
     const st = await API.google.status();
     if (!st.connected) {
       toast('Connect Google Drive first (Import page → Google Drive tab)', 'error');
       return;
     }
-    // Picker opens at the export default from .env (GOOGLE_EXPORT_FOLDER), but
-    // the user can navigate anywhere (shared folders and shortcuts included).
     openDriveFolderPicker({
-      title: 'Save report to Google Drive',
-      startFolder: st.exportFolder,
+      title: 'Export verification templates to Google Drive',
+      startFolder: st.importFolder,
       onSelect: async ({ id, pathNames }) => {
-        if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
+        const ok = await confirmDialog('Export verification templates to Drive?',
+          `This writes each verification in this version as a blank .docx template — no pass/fail results (its tags become subfolders; setup-tracked verifications also get their .xlsx tracker) into “${pathNames}”. Existing files with the same name are updated in place. Continue?`,
+          { confirmLabel: 'Export', danger: false });
+        if (!ok) return;
+        const original = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = 'Exporting…'; }
         try {
-          const result = await API.google.uploadReport(versionId, id);
-          toast(`Report uploaded to ${pathNames}: ${result.file.name}`, 'success');
-          if (result.file.webViewLink) window.open(result.file.webViewLink, '_blank');
+          const r = await API.google.exportVersion(versionId, id);
+          let msg = `Templates exported to ${pathNames}: ${r.created} created, ${r.updated} updated`;
+          if (r.errors?.length) msg += `, ${r.errors.length} failed`;
+          toast(msg, r.errors?.length ? 'info' : 'success');
         } catch (err) {
           toast(err.message, 'error');
         } finally {
-          if (btn) { btn.disabled = false; btn.innerHTML = `${ICONS.upload} Drive`; }
+          if (btn) { btn.disabled = false; btn.innerHTML = original; }
         }
       },
     });
