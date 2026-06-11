@@ -280,7 +280,10 @@ async function saveVersion(projectId, versionId) {
     await API.projects.updateVersion(projectId, versionId, { name, status });
     closeModal();
     toast('Version updated', 'success');
-    navigate('version-detail', { projectId, versionId });
+    // Stay where the edit was launched from: the project's version list or the
+    // version detail page.
+    if (currentPage === 'project-versions') openProjectVersions(projectId);
+    else navigate('version-detail', { projectId, versionId });
   } catch (err) { toast(err.message, 'error'); }
 }
 

@@ -174,7 +174,7 @@ All routes are under `/api` and require a session cookie (log in first), except
 |------|-----------|
 | Auth | `POST /auth/login` · `POST /auth/register` (first account = ADMIN, later = QA_ENGINEER) · `POST /auth/logout` · `GET /auth/me` |
 | Projects | `GET/POST /projects` · `GET/PUT/DELETE /projects/:id` |
-| Versions | `GET/POST /projects/:pid/versions` · `GET/PUT /projects/:pid/versions/:vid` |
+| Versions | `GET/POST /projects/:pid/versions` · `GET/PUT /projects/:pid/versions/:vid` · `DELETE /projects/:pid/versions/:vid` (ADMIN, cascade) |
 | Tests | `GET/POST /tests` · `GET/PUT/DELETE /tests/:id` · `POST /tests/:id/convert` (STANDARD ↔ SETUP_TRACKED) |
 | Version-tests | `GET/POST /tests/version/:vid` · `PUT/DELETE /tests/version/:vid/:vtId` |
 | Executions | `GET/POST /executions` · `GET /executions/:id` · `POST /executions/:id/sign` · `POST /executions/bulk-sign` · `GET /executions/:id/verify` |

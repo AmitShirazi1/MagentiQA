@@ -151,6 +151,11 @@ change its **name** (also description and Git repo), and **Save Changes**.
 version copies the previous version's verification list (all reset to *Not
 Started*), so you don't re-link everything each release.
 
+Each version card has an **edit** (pencil) button to rename the version and change
+its status, and — for ADMINs — a **delete** button that removes the version and all
+of its verification runs (this cascade can't be undone). You can also rename/set
+status from the version page via **Edit version**.
+
 The version page opens with a row of status cards — **Total, Passed, Partial,
 Failed, In Progress, Blocked, Not Started** — each marked by a coloured left
 accent (green passed, red failed, blue in progress, grey not started). The cards

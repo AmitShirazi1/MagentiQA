@@ -116,6 +116,8 @@ function renderVersionTimelineItem(v, projectId, isLatest) {
             <button class="btn-ghost btn-sm" title="Download the PDF report (results + approvals)" onclick="downloadReportPdf('${v.id}')">${ICONS.download} PDF report</button>
             <button class="btn-ghost btn-sm" title="Export the PDF report to Google Drive" onclick="exportReportPdfToDrive('${v.id}', this)">${ICONS.upload} PDF to Drive</button>
             <button class="btn-ghost btn-sm" title="Export blank verification templates (no results) to Google Drive" onclick="exportTemplatesToDrive('${v.id}', this)">${ICONS.upload} Templates to Drive</button>
+            <button class="icon-btn" title="Edit version (name & status)" aria-label="Edit version" onclick="openEditVersionModal('${projectId}','${v.id}')">${ICONS.edit}</button>
+            ${currentUser?.role === 'ADMIN' ? `<button class="icon-btn" title="Delete version" aria-label="Delete version" onclick="deleteVersion('${projectId}','${v.id}','${esc(v.name)}')">${ICONS.x}</button>` : ''}
           </div>
         </div>
         <div class="version-stats">
@@ -252,6 +254,18 @@ async function createVersion(projectId) {
       : `Version ${name} created`;
     toast(msg, 'success');
     navigate('project-versions', { projectId });
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function deleteVersion(projectId, versionId, name) {
+  const ok = await confirmDialog('Delete version?',
+    `This permanently deletes version “${name}” and all of its verification runs, signatures and evidence. This cannot be undone.`,
+    { confirmLabel: 'Delete Version' });
+  if (!ok) return;
+  try {
+    await API.projects.deleteVersion(projectId, versionId);
+    toast('Version deleted', 'info');
+    openProjectVersions(projectId);
   } catch (err) { toast(err.message, 'error'); }
 }
 

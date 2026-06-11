@@ -41,6 +41,7 @@ const API = {
     createVersion: (pid, data) => API.post(`/projects/${pid}/versions`, data),
     getVersion:    (pid, vid)  => API.get(`/projects/${pid}/versions/${vid}`),
     updateVersion: (pid, vid, data) => API.put(`/projects/${pid}/versions/${vid}`, data),
+    deleteVersion: (pid, vid)  => API.delete(`/projects/${pid}/versions/${vid}`),
   },
 
   // Tests

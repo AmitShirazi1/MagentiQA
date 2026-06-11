@@ -155,4 +155,14 @@ router.put('/:projectId/versions/:versionId', requireAuth, (req, res) => {
   res.json(updated);
 });
 
+router.delete('/:projectId/versions/:versionId', requireAuth, requireRole('ADMIN'), (req, res) => {
+  const before = db.versions.findById(req.params.versionId);
+  if (!before) return res.status(404).json({ error: 'Not found' });
+  // Cascade: version → its version-tests (+ their executions, signatures, evidence,
+  // drafts and approvals) so nothing is left orphaned.
+  db.transaction(() => deleteVersionCascade(req.params.versionId));
+  audit(req.user.id, 'DELETE', 'versions', req.params.versionId, before, null, req);
+  res.json({ ok: true });
+});
+
 module.exports = router;
