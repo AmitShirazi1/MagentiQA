@@ -203,7 +203,6 @@ async function openTestContentModal(vtId, versionId) {
     const metaFields = [
       ['Configuration', test?.configuration],
       ['Files', test?.files],
-      ['Description', test?.description],
       ['Pre conditions', test?.preconditions],
       ['Notes', test?.notes],
     ].filter(([, v]) => v).map(([k, v]) => `
@@ -225,6 +224,7 @@ async function openTestContentModal(vtId, versionId) {
     }).join('');
 
     openModal(`${test?.testId} — ${test?.title}`, `
+      ${test?.description ? `<p class="text-secondary" style="margin:0 0 14px;line-height:1.55;white-space:pre-wrap">${esc(test.description)}</p>` : ''}
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
         ${badge(vt.status)}
         ${(test?.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('')}
@@ -1148,6 +1148,7 @@ function execHeaderHtml(test, vt) {
           <button class="btn-primary" id="exec-sign-btn" onclick="openReviewAndSign()">${ICONS.sign} Review &amp; Sign</button>
         </div>
       </div>
+      ${test?.description ? `<p class="exec-desc text-secondary">${esc(test.description)}</p>` : ''}
       <div class="exec-progress" id="exec-progress"></div>
     </div>`;
 }

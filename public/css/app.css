@@ -1450,6 +1450,7 @@ input.invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--fail) 18%, 
 }
 .exec-title { font-size: 16px; font-weight: 650; letter-spacing: -0.3px; color: var(--text-primary); min-width: 0; }
 .exec-header-context { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.exec-desc { margin: 8px 0 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
 .exec-ctx-field { display: flex; flex-direction: column; gap: 2px; }
 .exec-ctx-field > label {
   font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.7px;
