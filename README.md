@@ -67,8 +67,9 @@ lib/
   signature.js          HMAC-SHA256 electronic signatures (sign / verify)
   cleanup.js            Startup + daily sweeps: orphan evidence files + dangling version-test links
   pdf.js                Verification report generator (Puppeteer → PDF, HTML
-                        fallback) — Magentiq Eye-branded; cover, summary stats,
-                        results overview, per-verification detail incl. setups
+                        fallback) — cover with the embedded Magentiq Eye logo,
+                        summary stats, results overview, per-verification detail
+                        incl. setups
   setups.js             Shared replace-on-save persistence for a tracked test's setups
   backup.js             Full snapshot (consistent DB + storage + all code) → backups/*.zip
   google.js             Drive/Docs client (OAuth, list, download, folder/file upsert)
@@ -91,6 +92,7 @@ routes/
                         approvals, dashboard stats, templates
 public/                 Single-page app (vanilla JS, no build step)
   index.html            Shell: login screen, sidebar, page containers, modal, toasts
+  img/                  Static brand assets (magentiq-eye-logo.png — the PDF cover logo)
   js/api.js             Fetch wrapper for all API calls
   js/app.js             Bootstrap, auth, History-API navigation (Back/Forward works)
   js/ui.js              Shared UI helpers (toast, modal, badges, theming)

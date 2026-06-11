@@ -364,8 +364,8 @@ version was verified by all the verifications in its report.
 A version has **three distinct exports** — the buttons appear both on the version
 page and on each version card in a project:
 
-- **(A) Download PDF** — the audit-ready PDF for the version: a
-  Magentiq Eye-branded cover, summary statistics, a results overview, and a detail
+- **(A) Download PDF** — the audit-ready PDF for the version: a cover carrying
+  the Magentiq Eye logo, summary statistics, a results overview, and a detail
   page per verification (its steps and, for setup-tracked verifications, its setups
   with each setup's verdict and tester) plus the version approval. Rendered via a
   headless browser, falling back to a self-contained HTML file if none is
