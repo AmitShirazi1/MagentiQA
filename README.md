@@ -252,8 +252,8 @@ Sync:   Drive API lists the folder recursively → native Google Docs are read a
         path become its tags (Features/Login/MyTest → tag "Login").
         Shared folders and shortcuts are supported: shortcuts resolve to their
         targets, and the folder browser has a "Shared with me" entry.
-(B) Report → Drive: generate the version's PDF report (results + approvals) and
-        push it into a chosen Drive folder (Drive files.create) — "Report → Drive"
+(B) PDF → Drive: generate the version's PDF report (results + approvals) and
+        push it into a chosen Drive folder (Drive files.create) — "PDF → Drive"
         button on every version. The picker defaults to GOOGLE_EXPORT_FOLDER.
 (C) Templates → Drive: "Templates → Drive" writes every verification back as a
         blank .docx TEMPLATE (no pass/fail results) — the exact inverse of import:

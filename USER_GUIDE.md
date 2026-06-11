@@ -263,11 +263,11 @@ can read them directly — no manual download.
    Drive are downloaded and run through the same parser as a manual import.
    Subfolder names along each file's path become tags.
 
-**Export the PDF report to Drive** — the **Report → Drive** button on a version
+**Export the PDF report to Drive** — the **PDF to Drive** button on a version
 uploads the version's full PDF report (results + approvals) into a Drive folder
 you choose; the picker opens at the configured export folder by default.
 
-**Export templates back to Drive** — the **Templates → Drive** button is the
+**Export templates back to Drive** — the **Templates to Drive** button is the
 inverse of import. It writes every verification as a blank `.docx` **template**
 (no pass/fail results): its **tags become the nested folders** that contain it,
 and setup-tracked verifications also get their `… test tracker.xlsx`. The `.docx`'s
@@ -359,22 +359,22 @@ version was verified by all the verifications in its report.
 A version has **three distinct exports** — the buttons appear both on the version
 page and on each version card in a project:
 
-- **(A) Download PDF report** — the audit-ready PDF for the version: a
+- **(A) Download PDF** — the audit-ready PDF for the version: a
   Magentiq Eye-branded cover, summary statistics, a results overview, and a detail
   page per verification (its steps and, for setup-tracked verifications, its setups
   with each setup's verdict and tester) plus the version approval. Rendered via a
   headless browser, falling back to a self-contained HTML file if none is
   available. This is the report **with** pass/fail results.
-- **(B) Export report → Drive** — the same PDF report, uploaded to a Google Drive
+- **(B) Export PDF to Drive** — the same PDF report, uploaded to a Google Drive
   folder you choose (the picker opens at the configured export folder by default).
-- **(C) Export templates → Drive** — every verification written back to Drive as a
+- **(C) Export templates to Drive** — every verification written back to Drive as a
   blank **template** (`.docx`, plus the `.xlsx` tracker for setup-tracked ones)
   with **no** results — for reuse as the canonical source set. See
   [Google Drive sync](#9-google-drive-sync-optional) for details.
 
-The PDF's summary statistics always show **Total, Passed, Partially Passed** and
-**Failed**; **In Progress** (shown in blue) and **Not Started** appear only when
-they aren't zero.
+The PDF's summary statistics read **Total → Not Started → In Progress → Failed →
+Partially Passed → Passed**; **Not Started** and **In Progress** (shown in blue)
+appear only when they aren't zero, while the rest always show.
 
 - **All verifications (JSON):** Admin page → **Data Export** downloads the entire
   verification library as JSON for backup or external processing.

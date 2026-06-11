@@ -117,9 +117,9 @@ async function renderVersionDetail(params = {}) {
         </div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="openAddTestToVersionModal('${versionId}','${projectId}')">${ICONS.plus} Add Test</button>
-          <button class="btn-secondary" title="Download the PDF report (results + approvals)" onclick="downloadReportPdf('${versionId}')">${ICONS.download} Download PDF report</button>
-          <button class="btn-secondary" title="Export the PDF report to Google Drive" onclick="exportReportPdfToDrive('${versionId}', this)">${ICONS.upload} Report → Drive</button>
-          <button class="btn-secondary" title="Export blank verification templates (no results) to Google Drive" onclick="exportTemplatesToDrive('${versionId}', this)">${ICONS.upload} Templates → Drive</button>
+          <button class="btn-secondary" title="Download the PDF report (results + approvals)" onclick="downloadReportPdf('${versionId}')">${ICONS.download} Download PDF</button>
+          <button class="btn-secondary" title="Export the PDF report to Google Drive" onclick="exportReportPdfToDrive('${versionId}', this)">${ICONS.upload} PDF to Drive</button>
+          <button class="btn-secondary" title="Export blank verification templates (no results) to Google Drive" onclick="exportTemplatesToDrive('${versionId}', this)">${ICONS.upload} Templates to Drive</button>
           <button class="btn-secondary" onclick="requestVersionApproval('${versionId}', this)">${ICONS.sign} Request approval</button>
           <button class="btn-secondary" onclick="openVersionStatusModal('${projectId}','${versionId}','${version.status}')">${ICONS.edit} Set Status</button>
         </div>

@@ -114,8 +114,8 @@ function renderVersionTimelineItem(v, projectId, isLatest) {
           <div class="btn-row" onclick="event.stopPropagation()">
             <button class="btn-secondary btn-sm" onclick="${open}">Open ${ICONS.arrowR}</button>
             <button class="btn-ghost btn-sm" title="Download the PDF report (results + approvals)" onclick="downloadReportPdf('${v.id}')">${ICONS.download} PDF report</button>
-            <button class="btn-ghost btn-sm" title="Export the PDF report to Google Drive" onclick="exportReportPdfToDrive('${v.id}', this)">${ICONS.upload} Report → Drive</button>
-            <button class="btn-ghost btn-sm" title="Export blank verification templates (no results) to Google Drive" onclick="exportTemplatesToDrive('${v.id}', this)">${ICONS.upload} Templates → Drive</button>
+            <button class="btn-ghost btn-sm" title="Export the PDF report to Google Drive" onclick="exportReportPdfToDrive('${v.id}', this)">${ICONS.upload} PDF to Drive</button>
+            <button class="btn-ghost btn-sm" title="Export blank verification templates (no results) to Google Drive" onclick="exportTemplatesToDrive('${v.id}', this)">${ICONS.upload} Templates to Drive</button>
           </div>
         </div>
         <div class="version-stats">
