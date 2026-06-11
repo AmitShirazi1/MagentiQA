@@ -103,7 +103,9 @@ do next, not just statistics. It greets you by name and notes how much has
 changed since your last visit. Pick the **project** and then the **version** from
 the two selectors at the top; the tag beside them (e.g. **Draft**, **In
 Verification**, **Verified**, **Released**) is that version's *workflow status*,
-set from the version's detail page.
+set from the version's detail page. The Dashboard **remembers your last project
+and version** on this device — switch tabs and come back, or restart the app, and
+it reopens right where you left off.
 
 **Needs your attention** leads the page — a work queue grouped by what to act on:
 

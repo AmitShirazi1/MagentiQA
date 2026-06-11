@@ -22,6 +22,21 @@ let _dashTests = [];
 let _dashCtx = { projectId: null, versionId: null };
 let _dashFilter = null;
 
+// Persisted last-viewed dashboard context (project + version), per user, in
+// localStorage — so the dashboard reopens where you left off when you switch
+// tabs and come back, and across application restarts. Best-effort: any storage
+// failure just falls back to the first project/version.
+function _dashCtxKey() { return `mq:dashCtx:${currentUser?.id || 'anon'}`; }
+function loadDashCtx() {
+  try { return JSON.parse(localStorage.getItem(_dashCtxKey()) || '{}') || {}; }
+  catch { return {}; }
+}
+function saveDashCtx(projectId, versionId) {
+  if (!projectId || !versionId) return;
+  try { localStorage.setItem(_dashCtxKey(), JSON.stringify({ projectId, versionId })); }
+  catch { /* storage unavailable / quota — ignore */ }
+}
+
 async function renderDashboard(params = {}) {
   const el = document.getElementById('page-dashboard');
   el.innerHTML = skeletonPage();
@@ -49,17 +64,23 @@ async function renderDashboard(params = {}) {
       allVersions.push(...versions.map(v => ({ ...v, projectName: p.name })));
     }
 
-    // Resolve the selected project, then the version within it.
-    let selectedProjectId = params.projectId;
-    if (!selectedProjectId && params.versionId) {
-      selectedProjectId = allVersions.find(v => v.id === params.versionId)?.projectId;
+    // Resolve the selected project, then the version within it. Explicit params
+    // (deep link, project/version dropdowns) win; otherwise restore the last
+    // viewed context from storage; otherwise fall back to the first available.
+    const stored = loadDashCtx();
+    const wantVid = params.versionId || stored.versionId;
+    let selectedProjectId = params.projectId || stored.projectId;
+    if (!selectedProjectId && wantVid) {
+      selectedProjectId = allVersions.find(v => v.id === wantVid)?.projectId;
     }
-    if (!selectedProjectId) {
+    if (!selectedProjectId || !projects.some(p => p.id === selectedProjectId)) {
       selectedProjectId = (projects.find(p => allVersions.some(v => v.projectId === p.id)) || projects[0])?.id;
     }
 
+    // A stored version only applies if it belongs to the resolved project — so
+    // explicitly switching project resets to that project's first version.
     const projectVersions = allVersions.filter(v => v.projectId === selectedProjectId);
-    let selectedVid = params.versionId;
+    let selectedVid = wantVid;
     if (!selectedVid || !projectVersions.some(v => v.id === selectedVid)) {
       selectedVid = projectVersions[0]?.id;
     }
@@ -93,6 +114,8 @@ async function renderDashboard(params = {}) {
     _dashTests = dashTests;
     _dashCtx = { projectId: selectedVersion?.projectId, versionId: selectedVid };
     _dashFilter = null;
+    // Remember this selection so the dashboard reopens here next time.
+    saveDashCtx(_dashCtx.projectId, _dashCtx.versionId);
 
     const s = dashData?.stats || {};
     const u = dashData?.unitStats || {};   // per-setup units for the readiness progress line
