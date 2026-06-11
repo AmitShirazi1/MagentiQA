@@ -304,9 +304,12 @@ verification you want to run.
    **summary** and note any **deviations** in the **Execution Details** panel.
 2. For a **setup-tracked** verification, the **Setups in this version** panel at
    the top of the right column is your selector — each entry previews the setup's
-   Test ID, details, tester and status; click one to perform it. (A compact
-   briefing strip under the header shows the selected setup's descriptive details
-   — not its status or tester, which are the outcome of running it.)
+   Test ID, details, tester and status; click one to perform it. A setup's status
+   reflects what you recorded: a signed **Passed/Failed**, **Blocked** if any step
+   is blocked, **Not Tested** if its steps are all not-tested, otherwise **In
+   progress** or **Not performed**. (A compact briefing strip under the header
+   shows the selected setup's descriptive details — not its status or tester,
+   which are the outcome of running it.)
    Each setup is recorded **independently** — your marks for one setup don't carry
    over to another — and is signed on its own.
 3. **Review & Sign** the execution. It unlocks only once **every step is Pass or
@@ -366,8 +369,12 @@ page and on each version card in a project:
 
 - **(A) Download PDF** — the audit-ready PDF for the version: a cover carrying
   the Magentiq Eye logo, summary statistics, a results overview, and a detail
-  page per verification (its steps and, for setup-tracked verifications, its setups
-  with each setup's verdict and tester) plus the version approval. Rendered via a
+  page per verification plus the version approval. Each step's **Pass/Fail** is
+  shown per verification; for a **setup-tracked** verification a step is rolled up
+  across all its setups — **Pass** if it passed in every setup, **Fail** if it
+  failed in every setup, and **Partially Passed** if it passed in some and failed
+  in others. The detail page also lists the verification's setups, each with its
+  verdict (Passed / Failed / Blocked / Not Started) and tester. Rendered via a
   headless browser, falling back to a self-contained HTML file if none is
   available. This is the report **with** pass/fail results.
 - **(B) Export PDF to Drive** — the same PDF report, uploaded to a Google Drive

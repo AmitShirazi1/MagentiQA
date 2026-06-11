@@ -1526,8 +1526,16 @@ function setupStatus(setupId) {
   const signed = _exec.execBySetup[setupId];
   if (signed) return { kind: 'result', value: signed };
   const ss = _exec.bySetup[setupId]?.stepState;
-  const startedNow = ss && Object.values(ss).some(s => s.result);
-  if (startedNow || _exec.draftSetups.has(setupId)) return { kind: 'progress' };
+  const results = ss ? Object.values(ss).map(s => s.result).filter(Boolean) : [];
+  if (results.length) {
+    // A Blocked step halts the setup, so Blocked wins; an all-Not-Tested setup is
+    // Not Tested. Anything else still in flight reads as In progress. (These can't
+    // be signed, so they never become a finalised execution result.)
+    if (results.includes('BLOCKED')) return { kind: 'result', value: 'BLOCKED' };
+    if (results.every(r => r === 'NOT_TESTED')) return { kind: 'result', value: 'NOT_TESTED' };
+    return { kind: 'progress' };
+  }
+  if (_exec.draftSetups.has(setupId)) return { kind: 'progress' };
   return { kind: 'none' };
 }
 
