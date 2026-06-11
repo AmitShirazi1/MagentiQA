@@ -13,8 +13,6 @@ const { autoRequestIfComplete } = require('../lib/approvals');
 const EVIDENCE_DIR = path.join(__dirname, '..', 'storage', 'evidence');
 if (!fs.existsSync(EVIDENCE_DIR)) fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
 
-function safeJson(s, fallback) { try { return JSON.parse(s); } catch { return fallback; } }
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(EVIDENCE_DIR, req.params.executionId || 'misc');
@@ -165,15 +163,15 @@ router.post('/', requireAuth, (req, res) => {
     const allExecutions = db.executions.findAll({ versionTestId });
     db.versionTests.update(versionTestId, { status: setupRollup(setups, allExecutions).status });
 
-    // Stamp the signed setup's Tester column with the user who signed it.
+    // Record this run's outcome on the setup: its verdict becomes the setup's
+    // Status and the signer becomes its Tester. These are re-created as the
+    // Status / Tester columns on export — they are never part of the setup's
+    // descriptive `data`.
     if (setupId) {
       const setup = db.setups.findOne({ testId: vt.testDefId, setupId });
       if (setup) {
-        const meta = safeJson(test.setupMeta, {});
-        const data = safeJson(setup.data, {});
         const name = db.users.findById(req.user.id)?.name || '';
-        if (meta.testerColumn) data[meta.testerColumn] = name;
-        db.setups.update(setup.id, { testerName: name, data: JSON.stringify(data) });
+        db.setups.update(setup.id, { status: result, testerName: name });
       }
     }
   } else {
@@ -334,6 +332,13 @@ router.post('/ci', (req, res) => {
     const setups = db.setups.findAll({ testId: vt.testDefId });
     const allExecutions = db.executions.findAll({ versionTestId });
     db.versionTests.update(versionTestId, { status: setupRollup(setups, allExecutions).status });
+
+    // Record the run's verdict/tester on the setup (re-created as the Status /
+    // Tester columns on export), mirroring the interactive sign path above.
+    if (setupId) {
+      const setup = db.setups.findOne({ testId: vt.testDefId, setupId });
+      if (setup) db.setups.update(setup.id, { status: ex.result, testerName: db.users.findById(executorId)?.name || '' });
+    }
   } else {
     db.versionTests.update(versionTestId, { status: ex.result });
   }

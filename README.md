@@ -46,7 +46,7 @@ AuditLog  (immutable trail of every CREATE/UPDATE/DELETE/EXECUTE/SIGN/IMPORT/EXP
 | **Project** | A product under verification (e.g. "Main Product"). Has a type (`US_SOFTWARE`, `EU_SOFTWARE`, `IMAGE_VERSION`). |
 | **Version** | A release of a project (e.g. `v1.0.0`). New versions automatically inherit the test list of the previous version, reset to `NOT_STARTED`. |
 | **TestDefinition** | A reusable verification ("Verifications Library"): title, auto-assigned ID (`VT-0001`…), tags, description, preconditions, configuration, and ordered steps. Has a `type`: **`STANDARD`** (the default) or **`SETUP_TRACKED`** (additionally owns a dynamic setups table — see Setup). |
-| **Setup** | One condition/configuration a **setup-tracked** verification must be performed under (e.g. a hardware wiring combination). Carries a serial id (`TEST-HW-001`), an editable baseline `status` (Passed/Failed/Pending) and tester, plus all the source spreadsheet's columns verbatim. Coverage ("7/10 setups passed") is shown per definition (baseline) and per version (from executions tagged with a `setupId`). |
+| **Setup** | One condition/configuration a **setup-tracked** verification must be performed under (e.g. a hardware wiring combination). Carries a serial id (`TEST-HW-001`) and its descriptive columns (Setup Details + any extra columns) as `data`. Its `status` (the pass/fail verdict) and `testerName` (who signed it) are recorded outcomes, **not** part of `data` — set when a setup is run & signed (or seeded from the imported spreadsheet) and re-created as the `Status` / `Tester Name` columns on export. Coverage ("7/10 setups passed") is shown per definition (baseline) and per version (from executions tagged with a `setupId`). |
 | **VersionTest** | Links a test definition to a version and carries the per-version status (`NOT_STARTED`, `IN_PROGRESS`, `PASSED`, `FAILED`, `BLOCKED`) and workflow state (`DRAFT`, `IN_REVIEW`, `APPROVED`). |
 | **Execution** | One run of a version-test: overall result, per-step results, SW version/build, environment, summary, deviations. Automatically e-signed as `EXECUTED` by the executor. |
 | **Signature** | FDA 21 CFR Part 11-style electronic signature: HMAC-SHA256 over `userId:entityId:timestamp:meaning` (`EXECUTED` / `REVIEWED` / `APPROVED`). Signs an **execution** (the per-verification "Verified By", auto-created on Review & Sign) or a **version** (the report's "Approved By"). Tampering is detectable via verify. |
@@ -223,13 +223,18 @@ in the same folder: `hardware setup.docx` ↔ `hardware setup test tracker.xlsx`
   becomes a **setup-tracked** test owning the tracker's table; a tracker imported
   on its own attaches to (or creates) the verification of the same base name.
 - The spreadsheet's summary rows are ignored; parsing starts at the table header
-  (located by its `Test ID` column). **Every column is captured dynamically** — no
-  data is lost regardless of the document — while `Test ID`, `Status` and
-  `Tester Name` are recognised as the setup id, baseline status and tester.
+  (located by its `Test ID` column). **Every descriptive column is captured
+  dynamically** (Test ID, any extra columns, Setup Details) — no data is lost
+  regardless of the document. The `Status` and `Tester Name` columns are treated
+  as runtime outcomes rather than setup data: their values seed the setup's
+  verdict and signer (exactly as if a tester had run & signed it in-app), and are
+  re-created as columns on export — not shown in the execution briefing.
 - Setup-tracked verifications live in the **Setup Trackers** page and show coverage
   ("7/10 setups passed"). You can create them by hand, edit columns/rows, and
-  **convert** any verification to/from setup-tracked. During execution a tester can
-  pick which setup a run covers, feeding per-version coverage.
+  **convert** any verification to/from setup-tracked. A new column added under
+  **Setups** lands between the `Test ID` column and `Setup Details` (where extra
+  columns belong). During execution a tester can pick which setup a run covers,
+  feeding per-version coverage.
 
 ## Google Drive Sync (optional)
 
@@ -247,18 +252,20 @@ Sync:   Drive API lists the folder recursively → native Google Docs are read a
         targets, and the folder browser has a "Shared with me" entry.
 Upload: generate a version PDF report → push it back into the Drive folder
         (Drive files.create) — "PDF → Drive" button on every version
-Export: "Export to Drive" on a version writes every verification back as a clean
-        .docx template — the exact inverse of import: a verification's tags become
-        the nested subfolders containing it, and setup-tracked verifications also
-        get their "<base> test tracker.xlsx". Result/Comment/Status/Signature
-        fields are left blank (an un-executed template). Files are upserted (an
-        existing same-name file in the same subfolder is updated in place), so
-        re-exporting an unchanged version reproduces the original folder. The
-        folder picker defaults to GOOGLE_IMPORT_FOLDER. All exported file and
-        folder names are lowercased; the file stem follows the import filename
-        when known (recorded as `sourceFile`), else the title. Generated trackers
-        place the column headers on row 8 (setup rows from row 9), matching the
-        source layout.
+Export: "Export to Drive" on a version writes every verification back as a
+        .docx — the exact inverse of import: a verification's tags become the
+        nested subfolders containing it, and setup-tracked verifications also get
+        their "<base> test tracker.xlsx". The tracker preserves the original
+        column order and re-creates the `Status` and `Tester Name` columns from
+        each setup's recorded verdict and signer (blank for setups not yet run);
+        the .docx's Result/Comment/Signature fields are left blank. Files are
+        upserted (an existing same-name file in the same subfolder is updated in
+        place), so re-exporting an unchanged version reproduces the original
+        folder. The folder picker defaults to GOOGLE_IMPORT_FOLDER. All exported
+        file and folder names are lowercased; the file stem follows the import
+        filename when known (recorded as `sourceFile`), else the title. Generated
+        trackers place the column headers on row 8 (setup rows from row 9),
+        matching the source layout.
 ```
 
 Tokens are stored locally in `data/google-tokens.json`; the only network calls

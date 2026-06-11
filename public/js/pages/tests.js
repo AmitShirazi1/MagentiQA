@@ -657,11 +657,15 @@ function idColIndex(cols)      { const i = cols.findIndex(c => /^test\s*id$/i.te
 
 function initSetupModel(columns, setups) {
   const cols = (columns && columns.length) ? [...columns] : [...DEFAULT_SETUP_COLUMNS];
-  const sIdx = statusColIndex(cols);
+  const sIdx = statusColIndex(cols), tIdx = testerColIndex(cols);
+  // Status and Tester aren't part of `data` — they're the setup's recorded
+  // verdict/signer, surfaced into their own columns here.
   _setupModel = {
     columns: cols,
     rows: (setups || []).map(s => cols.map((c, ci) =>
-      ci === sIdx ? (s.status || '') : ((s.data && s.data[c] != null) ? s.data[c] : '')
+      ci === sIdx ? (s.status || '')
+      : ci === tIdx ? (s.testerName || '')
+      : ((s.data && s.data[c] != null) ? s.data[c] : '')
     )),
   };
 }
@@ -709,7 +713,15 @@ function renderSetupEditor(containerId) {
 
 function setupSetColName(ci, val) { _setupModel.columns[ci] = val; }
 function setupSetCell(ri, ci, val) { _setupModel.rows[ri][ci] = val; }
-function setupAddColumn() { _setupModel.columns.push('New Column'); _setupModel.rows.forEach(r => r.push('')); renderSetupEditor(_setupContainerId); }
+// Extra columns always live between the Test ID column and the descriptive
+// Setup Details (and the Status/Tester columns that follow), so a new column is
+// inserted just after Test ID rather than appended at the end.
+function setupAddColumn() {
+  const at = idColIndex(_setupModel.columns) + 1;
+  _setupModel.columns.splice(at, 0, 'New Column');
+  _setupModel.rows.forEach(r => r.splice(at, 0, ''));
+  renderSetupEditor(_setupContainerId);
+}
 function setupRemoveColumn(ci) {
   if (_setupModel.columns.length <= 1) { toast('A setups table needs at least one column', 'error'); return; }
   _setupModel.columns.splice(ci, 1); _setupModel.rows.forEach(r => r.splice(ci, 1)); renderSetupEditor(_setupContainerId);
@@ -724,8 +736,10 @@ function collectSetupData() {
   const setups = _setupModel.rows
     .filter(row => row.some(v => (v || '').trim()))
     .map((row, ri) => {
+      // Status / Tester are recorded as the setup's verdict / signer, not as
+      // descriptive `data` — exclude them here (they re-appear as columns on export).
       const data = {};
-      cols.forEach((c, ci) => { data[c] = (row[ci] || '').trim(); });
+      cols.forEach((c, ci) => { if (ci !== sIdx && ci !== tIdx) data[c] = (row[ci] || '').trim(); });
       const setupId = (row[idIdx] || '').trim() || `Setup ${ri + 1}`;
       const st = (row[sIdx] || '').toUpperCase();
       return {
@@ -764,7 +778,7 @@ function setupMatrixHtml(test) {
   const setups = test.setups || [];
   const cov = test.setupCoverage || { passed: 0, total: setups.length };
   if (!cols.length && !setups.length) return '<p class="text-muted text-sm">No setups defined yet.</p>';
-  const sIdx = statusColIndex(cols);
+  const sIdx = statusColIndex(cols), tIdx = testerColIndex(cols);
   return `
     <div style="margin-bottom:10px">${progressBar(cov.passed || 0, cov.total || 0)}</div>
     <div style="overflow-x:auto;border:1px solid var(--border-subtle);border-radius:var(--radius)">
@@ -774,6 +788,8 @@ function setupMatrixHtml(test) {
           ${setups.map(s => `<tr>${cols.map((c, ci) =>
             ci === sIdx
               ? `<td>${s.status ? badge(s.status) : '<span class="text-muted">—</span>'}</td>`
+              : ci === tIdx
+              ? `<td>${esc(s.testerName || '')}</td>`
               : `<td>${esc((s.data && s.data[c]) || '')}</td>`
           ).join('')}</tr>`).join('')}
         </tbody>
@@ -1186,8 +1202,7 @@ function setupDetailText(s) {
 }
 
 function setupTesterName(s) {
-  const tIdx = testerColIndex(_exec.setupColumns);
-  return (tIdx >= 0 && s.data && s.data[_exec.setupColumns[tIdx]]) || '';
+  return s.testerName || '';
 }
 
 function renderBriefingGrid() {
@@ -1199,10 +1214,12 @@ function renderBriefingGrid() {
     const s = _exec.setups.find(x => x.setupId === _exec.currentSetupId);
     if (s) {
       const cols = _exec.setupColumns.length ? _exec.setupColumns : Object.keys(s.data || {});
-      const sIdx = statusColIndex(cols);
+      const sIdx = statusColIndex(cols), tIdx = testerColIndex(cols);
+      // The briefing describes the setup only. Its verdict (Status) and signer
+      // (Tester) are runtime outcomes — recorded via Review & Sign, not shown here.
       html = cols.map((c, i) => {
+        if (i === sIdx || i === tIdx) return '';
         const raw = (s.data && s.data[c]) || '';
-        if (i === sIdx) return briefingItem(c, s.status ? badge(s.status) : '<span class="text-muted">—</span>');
         const value = raw ? esc(raw) : '<span class="text-muted">—</span>';
         return briefingItem(c, value, { wide: raw.length > 42 });
       }).join('');

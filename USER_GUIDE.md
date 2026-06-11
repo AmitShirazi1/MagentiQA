@@ -199,9 +199,14 @@ or configurations (for example, different hardware wiring combinations). A
 
 On the **Setup Trackers** page you can:
 - **Create a setup-tracked verification** from scratch.
-- Edit its setups table — every column from your source spreadsheet is preserved.
-  Three columns are recognised specially: **Test ID** (the setup's id, e.g.
-  `TEST-HW-001`), **Status** (baseline Passed/Failed/Pending), and **Tester Name**.
+- Edit its setups table. The descriptive columns from your source spreadsheet are
+  preserved in order: **Test ID** (the setup's id, e.g. `TEST-HW-001`), any extra
+  columns, and **Setup Details**. Clicking **+ Column** under **Setups** adds the
+  new column where extra columns belong — between **Test ID** and **Setup Details**.
+- The **Status** and **Tester Name** columns are different: they aren't setup
+  details you fill in by hand, they're the **outcome** of running the setup — the
+  pass/fail verdict and who signed it. Importing a tracker that already has these
+  filled in is treated exactly as if a tester had run the setup and signed it.
 - See **coverage** at a glance — e.g. "7/10 setups passed" — both as a baseline
   (from the table) and per-version (from executions tagged with a setup).
 
@@ -261,15 +266,16 @@ You can also push a generated version PDF **back into Drive** with the
 **PDF → Drive** button on a version.
 
 **Export verifications back to Drive** — the inverse of import. On a version,
-**Export to Drive** writes every verification as a clean `.docx` template: its
-**tags become the nested folders** that contain it, and setup-tracked
-verifications also get their `… test tracker.xlsx`. The steps, expected results,
-and fields are filled in, but the **Results, Comments, Status and signature
-fields are left blank** — a clean, un-executed template. You choose the
-destination (it defaults to your import folder); existing files with the same
-name are **updated in place**, so re-exporting an unchanged version leaves the
-folder identical, while edits and new verifications show up at export time. This
-keeps the Drive folder current as the canonical template library.
+**Export to Drive** writes every verification as a `.docx`: its **tags become the
+nested folders** that contain it, and setup-tracked verifications also get their
+`… test tracker.xlsx`. The `.docx`'s steps and fields are filled in while its
+Results, Comments and signature fields are left blank. The tracker keeps your
+columns in their original order and **fills the Status and Tester Name columns
+from how each setup was run** — the pass/fail you recorded and the name that
+signed it (blank for setups not yet run). You choose the destination (it defaults
+to your import folder); existing files with the same name are **updated in
+place**, so re-exporting an unchanged version leaves the folder identical, while
+edits and new verifications show up at export time.
 
 > Connecting Drive requires server-side OAuth credentials in `.env`. If the Drive
 > tab says it's not configured, ask your administrator — setup steps are in the
@@ -292,15 +298,18 @@ verification you want to run.
 2. For a **setup-tracked** verification, the **Setups in this version** panel at
    the top of the right column is your selector — each entry previews the setup's
    Test ID, details, tester and status; click one to perform it. (A compact
-   briefing strip under the header reflects the selected setup's full details.)
+   briefing strip under the header shows the selected setup's descriptive details
+   — not its status or tester, which are the outcome of running it.)
    Each setup is recorded **independently** — your marks for one setup don't carry
    over to another — and is signed on its own.
 3. **Review & Sign** the execution. It unlocks only once **every step is Pass or
    Fail**; a step left **Blocked, Not Tested or unmarked** keeps it locked (a
    panel lists what still needs a result). Signing applies your **electronic
    signature** (FDA 21 CFR Part 11 style), shown as the verification's **"Verified
-   By"** signature in the report. For a setup-tracked verification it also stamps
-   the signed setup's **Tester** column with your name.
+   By"** signature in the report. For a setup-tracked verification it also records
+   the setup's outcome — its **Status** column becomes this run's pass/fail verdict
+   and its **Tester Name** column becomes your name — which is what reappears in an
+   exported tracker.
 4. You can **bulk-sign** several executions at once.
 
 Each signature is an HMAC over the user, entity, timestamp and meaning, so any
