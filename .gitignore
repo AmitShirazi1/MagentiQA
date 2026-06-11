@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Secrets & credentials — never commit these
+.env
+.env.*
+!.env.example
+client_secret_*.json
+*.pem
+*.key
+
+# Runtime data (real database, evidence, generated PDFs, imports, backups)
+data/
+storage/
+backups/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local tooling / editor / OS
+.claude/settings.local.json
+.DS_Store
+*.swp
+.idea/
+.vscode/

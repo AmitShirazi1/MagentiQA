@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MagentiQA — Verification Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+<!-- ── Login Screen ──────────────────────────────────────────────────────── -->
+<div id="login-screen" class="login-screen hidden">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-logo">QA</div>
+      <span class="brand-mark">Magenti<span class="brand-q">QA</span></span>
+      <span class="brand-sub">Verification Management Platform</span>
+    </div>
+    <div class="seg-control login-tabs">
+      <button class="seg-btn active" id="auth-tab-login" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="seg-btn" id="auth-tab-register" onclick="switchAuthTab('register')">Register</button>
+    </div>
+
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="field-group">
+        <label for="login-username">Username</label>
+        <input type="text" id="login-username" placeholder="sysadmin" autocomplete="username" required>
+      </div>
+      <div class="field-group">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <div id="login-error" class="form-error hidden"></div>
+      <button type="submit" class="btn-primary full-width">Sign In</button>
+    </form>
+
+    <form id="register-form" class="hidden" onsubmit="handleRegister(event)">
+      <div class="field-group">
+        <label for="reg-name">Full Name</label>
+        <input type="text" id="reg-name" placeholder="Jane Smith" autocomplete="name" required>
+      </div>
+      <div class="field-group">
+        <label for="reg-username">Username</label>
+        <input type="text" id="reg-username" placeholder="jsmith" autocomplete="username" required>
+      </div>
+      <div class="field-group">
+        <label for="reg-password">Password</label>
+        <input type="password" id="reg-password" placeholder="Minimum 8 characters" autocomplete="new-password" required minlength="8">
+      </div>
+      <div id="reg-error" class="form-error hidden"></div>
+      <button type="submit" class="btn-primary full-width">Create Account</button>
+      <p class="hint-text">The first account becomes Admin; later accounts start as QA Engineer.</p>
+    </form>
+  </div>
+</div>
+
+<!-- ── App Shell ─────────────────────────────────────────────────────────── -->
+<div id="app" class="app-shell hidden">
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="brand-logo">QA</div>
+      <span class="brand-mark">Magenti<span class="brand-q">QA</span></span>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Main navigation">
+      <div class="nav-section-label">Workspace</div>
+      <a href="#/dashboard" class="nav-item active" data-page="dashboard" onclick="navigate('dashboard');return false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="#/projects" class="nav-item" data-page="projects" onclick="navigate('projects');return false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span>Projects</span>
+      </a>
+      <a href="#/tests" class="nav-item" data-page="tests" onclick="navigate('tests');return false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Verifications</span>
+      </a>
+      <a href="#/trackers" class="nav-item" data-page="trackers" onclick="navigate('trackers');return false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        <span>Setup Trackers</span>
+      </a>
+      <a href="#/import" class="nav-item" data-page="import" onclick="navigate('import');return false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Import</span>
+      </a>
+
+      <div class="nav-section-label">Quality</div>
+      <a href="#/approvals" class="nav-item" data-page="approvals" onclick="navigate('approvals');return false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>Approvals</span>
+        <span id="approval-badge" class="badge-count hidden">0</span>
+      </a>
+      <a href="#/audit" class="nav-item" data-page="audit" onclick="navigate('audit');return false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span>Audit Trail</span>
+      </a>
+
+      <div class="nav-section-label">System</div>
+      <a href="#/admin" class="nav-item" data-page="admin" onclick="navigate('admin');return false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Admin</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-info">
+          <span id="user-name">—</span>
+          <span id="user-role" class="user-role">—</span>
+        </div>
+      </div>
+      <button class="icon-btn" onclick="logout()" title="Sign out" aria-label="Sign out">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main column: top bar + content -->
+  <div class="main-col">
+    <header class="topbar">
+      <div class="topbar-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="global-search" placeholder="Search verifications, pages…"
+               autocomplete="off" oninput="onGlobalSearch()" onfocus="onGlobalSearch()"
+               aria-label="Global search">
+        <span class="kbd-hint">/</span>
+        <div id="search-results" class="search-results hidden"></div>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="icon-btn" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+          <svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="hidden">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+
+        <div class="notif-wrap">
+          <button class="icon-btn" onclick="toggleNotifications(event)" title="Notifications" aria-label="Notifications">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span id="notif-dot" class="notif-dot hidden">0</span>
+          </button>
+          <div id="notif-popover" class="popover hidden"></div>
+        </div>
+
+        <div class="usermenu-wrap">
+          <button class="user-btn" onclick="toggleUserMenu(event)" aria-label="Account menu">
+            <div class="user-avatar" id="topbar-avatar" style="width:28px;height:28px;font-size:11px">?</div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted)"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="user-popover" class="popover user-menu hidden"></div>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content" class="main-content">
+      <div id="page-dashboard" class="page active"></div>
+      <div id="page-projects" class="page hidden"></div>
+      <div id="page-tests" class="page hidden"></div>
+      <div id="page-trackers" class="page hidden"></div>
+      <div id="page-import" class="page hidden"></div>
+      <div id="page-approvals" class="page hidden"></div>
+      <div id="page-audit" class="page hidden"></div>
+      <div id="page-admin" class="page hidden"></div>
+      <div id="page-version-detail" class="page hidden"></div>
+      <div id="page-test-execute" class="page hidden"></div>
+    </main>
+  </div>
+</div>
+
+<!-- ── Modal ─────────────────────────────────────────────────────────────── -->
+<div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal()">
+  <div id="modal-box" class="modal-box" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="modal-title">Modal</h3>
+      <button class="icon-btn" onclick="closeModal()" aria-label="Close dialog">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="modal-body" class="modal-body"></div>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────────────────────────── -->
+<div id="toast-container" aria-live="polite"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/ui.js"></script>
+<script src="/js/pages/dashboard.js"></script>
+<script src="/js/pages/projects.js"></script>
+<script src="/js/pages/tests.js"></script>
+<script src="/js/pages/trackers.js"></script>
+<script src="/js/pages/import.js"></script>
+<script src="/js/pages/approvals.js"></script>
+<script src="/js/pages/audit.js"></script>
+<script src="/js/pages/admin.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
