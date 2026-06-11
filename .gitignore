@@ -20,6 +20,7 @@ npm-debug.log*
 
 # Local tooling / editor / OS
 .claude/settings.local.json
+.claude/auto-commit.sh
 .DS_Store
 *.swp
 .idea/
