@@ -183,6 +183,10 @@ async function openEditProjectModal(projectId) {
   const p = await API.projects.get(projectId);
   openModal('Edit Project', `
     <div class="field-group">
+      <label for="ep-name">Project Name</label>
+      <input type="text" id="ep-name" value="${esc(p.name)}">
+    </div>
+    <div class="field-group">
       <label for="ep-desc">Description</label>
       <textarea id="ep-desc" rows="2">${esc(p.description || '')}</textarea>
     </div>
@@ -198,10 +202,12 @@ async function openEditProjectModal(projectId) {
 }
 
 async function saveProject(id) {
+  const name = document.getElementById('ep-name').value.trim();
   const description = document.getElementById('ep-desc').value;
   const gitRepo = document.getElementById('ep-git').value;
+  if (!name) { toast('Project name required', 'error'); return; }
   try {
-    await API.projects.update(id, { description, gitRepo });
+    await API.projects.update(id, { name, description, gitRepo });
     closeModal();
     toast('Project saved', 'success');
     renderProjects();

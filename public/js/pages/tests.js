@@ -121,7 +121,7 @@ async function renderVersionDetail(params = {}) {
           <button class="btn-secondary" title="Export the PDF report to Google Drive" onclick="exportReportPdfToDrive('${versionId}', this)">${ICONS.upload} PDF to Drive</button>
           <button class="btn-secondary" title="Export blank verification templates (no results) to Google Drive" onclick="exportTemplatesToDrive('${versionId}', this)">${ICONS.upload} Templates to Drive</button>
           <button class="btn-secondary" onclick="requestVersionApproval('${versionId}', this)">${ICONS.sign} Request approval</button>
-          <button class="btn-secondary" onclick="openVersionStatusModal('${projectId}','${versionId}','${version.status}')">${ICONS.edit} Set Status</button>
+          <button class="btn-secondary" onclick="openEditVersionModal('${projectId}','${versionId}')">${ICONS.edit} Edit version</button>
         </div>
       </div>
       <div class="page-body">
@@ -251,28 +251,35 @@ async function openTestContentModal(vtId, versionId) {
   }
 }
 
-function openVersionStatusModal(projectId, versionId, currentStatus) {
+async function openEditVersionModal(projectId, versionId) {
+  const v = await API.projects.getVersion(projectId, versionId);
   const labels = { DRAFT: 'Draft', IN_VERIFICATION: 'In Verification', VERIFIED: 'Verified', RELEASED: 'Released', OBSOLETE: 'Obsolete' };
-  openModal('Update Version Status', `
+  openModal('Edit Version', `
+    <div class="field-group">
+      <label for="vs-name">Version Name</label>
+      <input type="text" id="vs-name" value="${esc(v.name)}">
+    </div>
     <div class="field-group">
       <label for="vs-status">Status</label>
       <select id="vs-status">
         ${Object.entries(labels).map(([s, l]) =>
-          `<option value="${s}" ${s === currentStatus ? 'selected' : ''}>${l}</option>`).join('')}
+          `<option value="${s}" ${s === v.status ? 'selected' : ''}>${l}</option>`).join('')}
       </select>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="saveVersionStatus('${projectId}','${versionId}')">Save</button>
+      <button class="btn-primary" onclick="saveVersion('${projectId}','${versionId}')">Save Changes</button>
     </div>`);
 }
 
-async function saveVersionStatus(projectId, versionId) {
+async function saveVersion(projectId, versionId) {
+  const name = document.getElementById('vs-name').value.trim();
   const status = document.getElementById('vs-status').value;
+  if (!name) { toast('Version name required', 'error'); return; }
   try {
-    await API.projects.updateVersion(projectId, versionId, { status });
+    await API.projects.updateVersion(projectId, versionId, { name, status });
     closeModal();
-    toast('Status updated', 'success');
+    toast('Version updated', 'success');
     navigate('version-detail', { projectId, versionId });
   } catch (err) { toast(err.message, 'error'); }
 }

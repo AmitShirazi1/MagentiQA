@@ -52,6 +52,14 @@ router.get('/:id', requireAuth, (req, res) => {
 router.put('/:id', requireAuth, (req, res) => {
   const before = db.projects.findById(req.params.id);
   if (!before) return res.status(404).json({ error: 'Not found' });
+  // A rename must stay unique across projects (and non-empty).
+  if (req.body.name !== undefined) {
+    const name = String(req.body.name).trim();
+    if (!name) return res.status(400).json({ error: 'Project name cannot be empty' });
+    const clash = db.projects.findOne({ name });
+    if (clash && clash.id !== req.params.id) return res.status(409).json({ error: 'Project name taken' });
+    req.body.name = name;
+  }
   const updated = db.projects.update(req.params.id, req.body);
   audit(req.user.id, 'UPDATE', 'projects', req.params.id, before, updated, req);
   res.json(updated);
@@ -134,6 +142,14 @@ router.get('/:projectId/versions/:versionId', requireAuth, (req, res) => {
 router.put('/:projectId/versions/:versionId', requireAuth, (req, res) => {
   const before = db.versions.findById(req.params.versionId);
   if (!before) return res.status(404).json({ error: 'Not found' });
+  // A rename must stay unique within the project (and non-empty).
+  if (req.body.name !== undefined) {
+    const name = String(req.body.name).trim();
+    if (!name) return res.status(400).json({ error: 'Version name cannot be empty' });
+    const clash = db.versions.findOne({ projectId: before.projectId, name });
+    if (clash && clash.id !== req.params.versionId) return res.status(409).json({ error: 'Version name taken' });
+    req.body.name = name;
+  }
   const updated = db.versions.update(req.params.versionId, req.body);
   audit(req.user.id, 'UPDATE', 'versions', req.params.versionId, before, updated, req);
   res.json(updated);
