@@ -53,7 +53,7 @@ function renderTrackersTable(tests) {
                 <td>
                   <div style="display:flex;gap:2px;flex-wrap:nowrap">
                     <button class="icon-btn" title="Edit" aria-label="Edit" onclick="openEditTestModal('${t.id}')">${ICONS.edit}</button>
-                    <button class="icon-btn" title="Delete" aria-label="Delete" style="color:var(--fail)" onclick="deleteTrackerTest('${t.id}')">${ICONS.x}</button>
+                    <button class="icon-btn" title="Delete" aria-label="Delete" style="color:var(--fail)" onclick="deleteTrackerTest('${t.id}')">${ICONS.trash}</button>
                   </div>
                 </td>
                 <td>${(t.tags || []).slice(0, 4).map(tag => `<span class="tag">${esc(tag)}</span>`).join(' ')}</td>

@@ -169,6 +169,9 @@ From a version you can also:
 - **Download the PDF report**, **export the report to Drive**, or **export blank
   templates to Drive** — three separate buttons (see [Reports & exports](#13-reports--exports)).
 - **Execute** any verification, or **View** its full content and last results.
+- **Unlink** a verification from the version (the unlink icon on its row): it's
+  removed from this version, along with its runs here, but stays in the library and
+  in other versions.
 - **Edit version** — rename the version and set its workflow status. (Renaming a
   version also renames its PDF report file, which is named after the project and
   version.)

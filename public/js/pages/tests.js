@@ -87,9 +87,10 @@ async function renderVersionDetail(params = {}) {
                     <span class="clickable-title" onclick="openTestContentModal('${vt.id}','${versionId}')">${esc(vt.test?.title || '—')}</span>
                   </td>
                   <td>
-                    <div style="display:inline-flex;gap:6px;flex-wrap:nowrap">
+                    <div style="display:inline-flex;gap:6px;flex-wrap:nowrap;align-items:center">
                       <button class="btn-secondary btn-sm" onclick="navigate('test-execute',{versionTestId:'${vt.id}',versionId:'${versionId}',projectId:'${projectId}'})">${ICONS.play} Execute</button>
                       <button class="btn-ghost btn-sm" onclick="openTestContentModal('${vt.id}','${versionId}')">View</button>
+                      <button class="icon-btn" title="Unlink from this version" aria-label="Unlink verification from this version" onclick="unlinkVerification('${projectId}','${versionId}','${vt.id}','${esc(vt.test?.title || '')}')">${ICONS.unlink}</button>
                     </div>
                   </td>
                   <td>${(vt.test?.tags || []).slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join(' ')}</td>
@@ -138,6 +139,20 @@ async function renderVersionDetail(params = {}) {
   } catch (err) {
     el.innerHTML = `<div class="page-body"><div class="form-error">${ICONS.alert} ${esc(err.message)}</div></div>`;
   }
+}
+
+// Unlink a verification from this version — drops the link (and its runs in this
+// version) without touching the verification definition in the library.
+async function unlinkVerification(projectId, versionId, vtId, title) {
+  const ok = await confirmDialog('Unlink verification from this version?',
+    `“${title}” will be removed from this version, along with its executions and signatures in this version. The verification stays in the library and in other versions. Continue?`,
+    { confirmLabel: 'Unlink' });
+  if (!ok) return;
+  try {
+    await API.tests.removeFromVersion(versionId, vtId);
+    toast('Verification unlinked from this version', 'info');
+    renderVersionDetail({ projectId, versionId });
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 // Request a version-level sign-off (the report approval). Approvers resolve it
@@ -369,7 +384,7 @@ async function renderTests(params = {}) {
         <div class="btn-row" style="margin-left:auto">
           <button class="btn-secondary btn-sm" onclick="openBulkAddToVersion()">${ICONS.plus} Add to version</button>
           <button class="btn-secondary btn-sm" onclick="openBulkRemoveFromVersion()">Remove from version</button>
-          <button class="btn-danger btn-sm" onclick="bulkDeleteTests()">${ICONS.x} Delete</button>
+          <button class="btn-danger btn-sm" onclick="bulkDeleteTests()">${ICONS.trash} Delete</button>
           <button class="btn-ghost btn-sm" onclick="clearVerifSelection()">Clear</button>
         </div>
       </div>
@@ -415,7 +430,7 @@ function renderTestTable(tests) {
                 <td>
                   <div style="display:flex;gap:2px;flex-wrap:nowrap">
                     <button class="icon-btn" title="Edit" aria-label="Edit verification" onclick="openEditTestModal('${t.id}')">${ICONS.edit}</button>
-                    <button class="icon-btn" title="Delete" aria-label="Delete verification" style="color:var(--fail)" onclick="deleteTest('${t.id}')">${ICONS.x}</button>
+                    <button class="icon-btn" title="Delete" aria-label="Delete verification" style="color:var(--fail)" onclick="deleteTest('${t.id}')">${ICONS.trash}</button>
                   </div>
                 </td>
                 <td>${t.type === 'SETUP_TRACKED'
@@ -631,7 +646,7 @@ function addStepRow(containerId) {
     <span class="mono" style="padding-top:9px;color:var(--text-muted)">${idx + 1}.</span>
     <input type="text" placeholder="Action / step description" class="step-action">
     <input type="text" placeholder="Expected result" class="step-expected">
-    <button class="icon-btn" aria-label="Remove step" onclick="this.parentElement.remove();renumberSteps('${containerId}')">${ICONS.x}</button>`;
+    <button class="icon-btn" aria-label="Remove step" onclick="this.parentElement.remove();renumberSteps('${containerId}')">${ICONS.trash}</button>`;
   container.appendChild(row);
   row.querySelector('.step-action').focus();
 }
@@ -696,14 +711,14 @@ function renderSetupEditor(containerId) {
             <th>
               <div class="setup-col-head">
                 <input class="setup-col-name" value="${esc(c)}" oninput="setupSetColName(${ci}, this.value)" placeholder="Column">
-                <button type="button" class="icon-btn" title="Remove column" onclick="setupRemoveColumn(${ci})">${ICONS.x}</button>
+                <button type="button" class="icon-btn" title="Remove column" onclick="setupRemoveColumn(${ci})">${ICONS.trash}</button>
               </div>
             </th>`).join('')}
         </tr></thead>
         <tbody>
           ${m.rows.map((row, ri) => `
             <tr>
-              <td><button type="button" class="icon-btn" title="Remove setup" onclick="setupRemoveRow(${ri})">${ICONS.x}</button></td>
+              <td><button type="button" class="icon-btn" title="Remove setup" onclick="setupRemoveRow(${ri})">${ICONS.trash}</button></td>
               ${m.columns.map((_, ci) => `<td>${
                 ci === sIdx
                   ? `<select class="setup-cell" onchange="setupSetCell(${ri},${ci},this.value)">
@@ -897,7 +912,7 @@ async function openEditTestModal(testId) {
           <span class="mono" style="padding-top:9px;color:var(--text-muted)">${i + 1}.</span>
           <input type="text" class="step-action" value="${esc(s.action)}" placeholder="Action">
           <input type="text" class="step-expected" value="${esc(s.expectedResult || '')}" placeholder="Expected">
-          <button class="icon-btn" aria-label="Remove step" onclick="this.parentElement.remove();renumberSteps('et-steps-list')">${ICONS.x}</button>
+          <button class="icon-btn" aria-label="Remove step" onclick="this.parentElement.remove();renumberSteps('et-steps-list')">${ICONS.trash}</button>
         </div>`).join('')}
     </div>
     <button class="btn-ghost" onclick="addStepRow('et-steps-list')">${ICONS.plus} Add Step</button>
@@ -1418,7 +1433,7 @@ function evThumbHtml(f, onRemove) {
     <div class="ev-thumb">
       <span class="tag ev-tag">${esc(ext)}</span>
       <span class="ev-name" title="${esc(f.name)}">${esc(f.name)}</span>
-      <button class="icon-btn" style="padding:2px" aria-label="Remove file" onclick="${onRemove}">${ICONS.x}</button>
+      <button class="icon-btn" style="padding:2px" aria-label="Remove file" onclick="${onRemove}">${ICONS.trash}</button>
     </div>`;
 }
 
