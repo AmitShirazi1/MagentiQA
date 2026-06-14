@@ -74,13 +74,15 @@ async function renderVersionDetail(params = {}) {
             <thead><tr>
               ${sortableTH('ID')}
               ${sortableTH('Title')}
-              <th style="width:180px">Actions</th>
+              <th style="width:200px">Actions</th>
               <th>Tags</th>
               ${sortableTH('Status')}
               ${sortableTH('Last Run')}
             </tr></thead>
             <tbody>
-              ${tests.map(vt => `
+              ${tests.map(vt => {
+                const started = (vt.status || 'NOT_STARTED') !== 'NOT_STARTED';
+                return `
                 <tr data-status="${esc(vt.status || '')}">
                   <td class="mono">${esc(vt.test?.testId || '—')}</td>
                   <td>
@@ -88,15 +90,18 @@ async function renderVersionDetail(params = {}) {
                   </td>
                   <td>
                     <div style="display:inline-flex;gap:6px;flex-wrap:nowrap;align-items:center">
-                      <button class="btn-secondary btn-sm" onclick="navigate('test-execute',{versionTestId:'${vt.id}',versionId:'${versionId}',projectId:'${projectId}'})">${ICONS.play} Execute</button>
-                      <button class="btn-ghost btn-sm" onclick="openTestContentModal('${vt.id}','${versionId}')">View</button>
+                      <button class="btn-secondary btn-sm" onclick="navigate('test-execute',{versionTestId:'${vt.id}',versionId:'${versionId}',projectId:'${projectId}'})">${ICONS.play} ${execActionLabel(vt.status)}</button>
+                      ${started
+                        ? `<button class="icon-btn" title="Reset to Not Started (deletes this version's executions)" aria-label="Reset verification to Not Started" onclick="resetVerification('${projectId}','${versionId}','${vt.id}','${esc(vt.test?.title || '')}')">${ICONS.reset}</button>`
+                        : ''}
                       <button class="icon-btn" title="Unlink from this version" aria-label="Unlink verification from this version" onclick="unlinkVerification('${projectId}','${versionId}','${vt.id}','${esc(vt.test?.title || '')}')">${ICONS.unlink}</button>
                     </div>
                   </td>
                   <td>${(vt.test?.tags || []).slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join(' ')}</td>
                   <td data-sort="${esc(vt.status || '')}">${statusBadgeWithCount(vt)}</td>
                   <td class="t-meta" data-sort="${vt.lastExecutedAt || ''}">${relTime(vt.lastExecutedAt)}</td>
-                </tr>`).join('')}
+                </tr>`;
+              }).join('')}
             </tbody>
           </table>
         </div>
@@ -142,6 +147,30 @@ async function renderVersionDetail(params = {}) {
 }
 
 // Unlink a verification from this version — drops the link (and its runs in this
+// Execute-button label reflects how far along the verification is:
+//   Not Started            → Execute
+//   In Progress / Blocked  → Continue
+//   Passed/Failed/Partial  → Re-execute (a finished run; start a fresh attempt)
+function execActionLabel(status) {
+  if (status === 'IN_PROGRESS' || status === 'BLOCKED') return 'Continue';
+  if (status === 'PASSED' || status === 'FAILED' || status === 'PARTIAL') return 'Re-execute';
+  return 'Execute';
+}
+
+// Reset a verification to NOT_STARTED, deleting its executions/signatures/evidence
+// for this version (a clean slate). Server-gated to ADMIN / QA_ENGINEER.
+async function resetVerification(projectId, versionId, vtId, title) {
+  const ok = await confirmDialog('Reset verification to Not Started?',
+    `This permanently deletes “${title}”’s executions, signatures and uploaded evidence in this version, returning it to Not Started. The verification definition and its other versions are untouched. This cannot be undone. Continue?`,
+    { confirmLabel: 'Reset', danger: true });
+  if (!ok) return;
+  try {
+    await API.tests.resetVT(versionId, vtId);
+    toast('Verification reset to Not Started', 'info');
+    renderVersionDetail({ projectId, versionId });
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 // version) without touching the verification definition in the library.
 async function unlinkVerification(projectId, versionId, vtId, title) {
   const ok = await confirmDialog('Unlink verification from this version?',

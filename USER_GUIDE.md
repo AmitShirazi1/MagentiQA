@@ -169,7 +169,15 @@ From a version you can also:
 - **Add verifications** to the version (from the library).
 - **Download the PDF report**, **export the report to Drive**, or **export blank
   templates to Drive** — three separate buttons (see [Reports & exports](#13-reports--exports)).
-- **Execute** any verification, or **View** its full content and last results.
+- **Execute** a verification — the button's label tracks its status: **Execute**
+  when it hasn't started, **Continue** while it's in progress or blocked, and
+  **Re-execute** once it has a finished result. (Click the verification's title at
+  any time to view its full content and last results.)
+- **Reset** a verification to *Not Started* (the reset icon, shown once it has been
+  run): permanently deletes its executions, signatures and uploaded evidence **in
+  this version**, returning it to a clean slate. Limited to admins and QA engineers
+  and recorded in the audit trail; the library definition and other versions are
+  untouched.
 - **Unlink** a verification from the version (the unlink icon on its row): it's
   removed from this version, along with its runs here, but stays in the library and
   in other versions.

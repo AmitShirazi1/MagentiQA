@@ -59,6 +59,7 @@ const API = {
     addToVersion:(vid, data)   => API.post(`/tests/version/${vid}`, data),
     updateVT:    (vid, vtid, data) => API.put(`/tests/version/${vid}/${vtid}`, data),
     removeFromVersion: (vid, vtid) => API.delete(`/tests/version/${vid}/${vtid}`),
+    resetVT:     (vid, vtid)   => API.post(`/tests/version/${vid}/${vtid}/reset`),
   },
 
   // Executions

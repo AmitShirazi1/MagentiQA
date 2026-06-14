@@ -5,7 +5,8 @@ const { audit } = require('../lib/audit');
 const { requireAuth, requireRole } = require('../lib/auth');
 const { saveSetups } = require('../lib/setups');
 const { setupRollup } = require('../lib/rollup');
-const { deleteVersionTestCascade } = require('../lib/cascade');
+const { deleteVersionTestCascade, resetVersionTestExecutions } = require('../lib/cascade');
+const { autoRequestIfComplete } = require('../lib/approvals');
 const { v4: uuidv4 } = require('uuid');
 
 // ── Setup-tracking helpers ─────────────────────────────────────────────────────
@@ -280,6 +281,26 @@ router.put('/version/:versionId/:vtId', requireAuth, (req, res) => {
   const updated = db.versionTests.update(req.params.vtId, req.body);
   audit(req.user.id, 'UPDATE', 'versionTests', req.params.vtId, before, updated, req);
   res.json(updated);
+});
+
+// POST /api/tests/version/:versionId/:vtId/reset — wipe this verification's
+// execution history in the version and return it to NOT_STARTED. Deletes signed
+// records, so it is limited to ADMIN / QA_ENGINEER.
+router.post('/version/:versionId/:vtId/reset', requireAuth, requireRole('ADMIN', 'QA_ENGINEER'), (req, res) => {
+  const before = db.versionTests.findById(req.params.vtId);
+  if (!before) return res.status(404).json({ error: 'Not found' });
+
+  let counts;
+  db.transaction(() => {
+    counts = resetVersionTestExecutions(req.params.vtId);
+    db.versionTests.update(req.params.vtId, { status: 'NOT_STARTED', workflowState: 'DRAFT' });
+  });
+  // Coverage just dropped — withdraw any auto-requested version sign-off that no
+  // longer reflects 100% completion.
+  autoRequestIfComplete(before.versionId, req.user.id, req);
+  audit(req.user.id, 'RESET', 'versionTests', req.params.vtId, before,
+    { status: 'NOT_STARTED', deleted: counts }, req);
+  res.json({ ok: true, ...counts });
 });
 
 // DELETE /api/tests/version/:versionId/:vtId

@@ -39,7 +39,7 @@ Project ──< Version ──< VersionTest >── TestDefinition ──< TestS
                             │        └──< Evidence    (uploaded files)
                             └──< Approval
 User ──< Invite   (admin-issued, single-use, expiring sign-up token)
-AuditLog  (immutable trail of every CREATE/UPDATE/DELETE/EXECUTE/SIGN/IMPORT/EXPORT)
+AuditLog  (immutable trail of every CREATE/UPDATE/DELETE/RESET/EXECUTE/SIGN/IMPORT/EXPORT)
 ```
 
 | Entity | Meaning |
@@ -180,7 +180,7 @@ All routes are under `/api` and require a session cookie (log in first), except
 | Projects | `GET/POST /projects` · `GET/PUT/DELETE /projects/:id` |
 | Versions | `GET/POST /projects/:pid/versions` · `GET/PUT /projects/:pid/versions/:vid` · `DELETE /projects/:pid/versions/:vid` (ADMIN, cascade) |
 | Tests | `GET/POST /tests` · `GET/PUT/DELETE /tests/:id` · `POST /tests/:id/convert` (STANDARD ↔ SETUP_TRACKED) |
-| Version-tests | `GET/POST /tests/version/:vid` · `PUT/DELETE /tests/version/:vid/:vtId` |
+| Version-tests | `GET/POST /tests/version/:vid` · `PUT/DELETE /tests/version/:vid/:vtId` · `POST /tests/version/:vid/:vtId/reset` (ADMIN/QA_ENGINEER — wipe executions, back to NOT_STARTED) |
 | Executions | `GET/POST /executions` · `GET /executions/:id` · `POST /executions/:id/sign` · `POST /executions/bulk-sign` · `GET /executions/:id/verify` |
 | Evidence | `GET/POST /executions/:id/evidence` · `GET .../:evId/download` · `DELETE .../:evId` |
 | Import | `POST /import/preview` · `POST /import/folder` · `POST /import/save` · `POST /import/save-batch` |
