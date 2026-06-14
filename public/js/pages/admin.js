@@ -5,9 +5,10 @@ async function renderAdmin(params = {}) {
   el.innerHTML = skeletonPage();
   try {
     const isAdmin = currentUser?.role === 'ADMIN';
-    const [users, backups] = await Promise.all([
+    const [users, backups, invites] = await Promise.all([
       API.users(),
       isAdmin ? API.backups().catch(() => []) : Promise.resolve([]),
+      isAdmin ? API.listInvites().catch(() => []) : Promise.resolve([]),
     ]);
     el.innerHTML = `
       <div class="page-header">
@@ -17,7 +18,10 @@ async function renderAdmin(params = {}) {
         <div class="card flush mb-16">
           <div class="card-header">
             <span class="card-title">Users</span>
-            <span class="t-meta">${users.length} user${users.length === 1 ? '' : 's'}</span>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span class="t-meta">${users.length} user${users.length === 1 ? '' : 's'}</span>
+              ${isAdmin ? `<button class="btn-primary btn-sm" onclick="openInviteUserModal()">${ICONS.plus || ''} Invite user</button>` : ''}
+            </div>
           </div>
           <div class="table-wrap">
             <table>
@@ -25,12 +29,16 @@ async function renderAdmin(params = {}) {
                 ${sortableTH('Name')}
                 ${sortableTH('Username')}
                 ${sortableTH('Role')}
+                ${sortableTH('Status')}
                 ${sortableTH('Joined')}
-                <th style="width:120px">Actions</th>
+                <th style="width:160px">Actions</th>
               </tr></thead>
               <tbody>
-                ${users.map(u => `
-                  <tr>
+                ${users.map(u => {
+                  const active = u.active !== false;
+                  const isSelf = u.id === currentUser?.id;
+                  return `
+                  <tr${active ? '' : ' class="row-muted"'}>
                     <td>
                       <div style="display:flex;align-items:center;gap:10px">
                         <div class="user-avatar neutral" style="width:26px;height:26px;font-size:10.5px">${esc((u.name || u.username || '?')[0].toUpperCase())}</div>
@@ -39,17 +47,56 @@ async function renderAdmin(params = {}) {
                     </td>
                     <td class="mono">${esc(u.username)}</td>
                     <td data-sort="${esc(u.role)}">${badge(u.role)}</td>
+                    <td data-sort="${active ? 'active' : 'inactive'}">${badge(active ? 'active' : 'inactive')}</td>
                     <td class="t-meta" data-sort="${u.createdAt || ''}">${relTime(u.createdAt)}</td>
                     <td>
-                      ${currentUser?.role === 'ADMIN'
-                        ? `<button class="btn-ghost btn-sm" onclick="openEditUserModal('${u.id}','${esc(u.name || '')}','${u.role}')">${ICONS.edit} Edit Role</button>`
+                      ${currentUser?.role === 'ADMIN' ? `
+                        <div class="btn-row" style="gap:4px">
+                          <button class="btn-ghost btn-sm" onclick="openEditUserModal('${u.id}','${esc(u.name || '')}','${u.role}')">${ICONS.edit} Role</button>
+                          <button class="btn-ghost btn-sm" onclick="openResetPasswordModal('${u.id}','${esc(u.name || u.username)}')">Reset password</button>
+                          ${isSelf ? '' : (active
+                            ? `<button class="btn-ghost btn-sm danger" onclick="setUserActive('${u.id}', false)">Deactivate</button>`
+                            : `<button class="btn-ghost btn-sm" onclick="setUserActive('${u.id}', true)">Reactivate</button>`)}
+                        </div>`
                         : '<span class="text-muted text-sm">—</span>'}
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        ${isAdmin && invites.length ? `
+        <div class="card flush mb-16">
+          <div class="card-header">
+            <span class="card-title">Pending invites</span>
+            <span class="t-meta">${invites.length} pending</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Name</th><th>Username</th><th>Role</th><th>Expires</th>
+                <th style="width:200px">Actions</th>
+              </tr></thead>
+              <tbody>
+                ${invites.map(i => `
+                  <tr>
+                    <td class="bold">${esc(i.name || '—')}</td>
+                    <td class="mono">${esc(i.username)}</td>
+                    <td>${badge(i.role)}</td>
+                    <td class="t-meta">${relTime(i.expiresAt)}</td>
+                    <td>
+                      <div class="btn-row" style="gap:4px">
+                        <button class="btn-ghost btn-sm" onclick="copyInviteLink('${esc(i.url)}')">${ICONS.copy || ''} Copy link</button>
+                        <button class="btn-ghost btn-sm danger" onclick="revokeInvite('${i.id}')">Revoke</button>
+                      </div>
                     </td>
                   </tr>`).join('')}
               </tbody>
             </table>
           </div>
-        </div>
+        </div>` : ''}
 
         ${isAdmin ? `
         <div class="card flush mb-16">
@@ -117,7 +164,7 @@ function openEditUserModal(id, name, role) {
     <div class="field-group">
       <label for="eu-role">Role</label>
       <select id="eu-role">
-        ${['ADMIN', 'QA_ENGINEER', 'REVIEWER', 'APPROVER', 'DEVELOPER'].map(r =>
+        ${['ADMIN', 'APPROVER', 'QA_ENGINEER'].map(r =>
           `<option value="${r}" ${r === role ? 'selected' : ''}>${roleLabel(r)}</option>`).join('')}
       </select>
     </div>
@@ -134,6 +181,106 @@ async function saveUserRole(id) {
     closeModal();
     toast('Role updated', 'success');
     renderAdmin();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Invites ───────────────────────────────────────────────────────────────────
+
+function openInviteUserModal() {
+  openModal('Invite user', `
+    <p class="text-sm text-secondary mb-16">Create an account and share the generated link.
+      The invitee opens it once to set their own password.</p>
+    <div class="field-group">
+      <label for="inv-name">Full name</label>
+      <input type="text" id="inv-name" placeholder="Jane Smith" autocomplete="off">
+    </div>
+    <div class="field-group">
+      <label for="inv-username">Username</label>
+      <input type="text" id="inv-username" placeholder="jsmith" autocomplete="off">
+    </div>
+    <div class="field-group">
+      <label for="inv-role">Role</label>
+      <select id="inv-role">
+        ${['QA_ENGINEER', 'APPROVER', 'ADMIN'].map(r => `<option value="${r}">${roleLabel(r)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitInvite()">Create invite</button>
+    </div>`);
+}
+
+async function submitInvite() {
+  const name = document.getElementById('inv-name').value.trim();
+  const username = document.getElementById('inv-username').value.trim();
+  const role = document.getElementById('inv-role').value;
+  if (!username) return toast('Username is required', 'error');
+  try {
+    const { url } = await API.inviteUser({ name, username, role });
+    const fullUrl = location.origin + url;
+    openModal('Invite created', `
+      <p class="text-sm text-secondary mb-16">Share this single-use link with <b>${esc(username)}</b>.
+        It expires in 7 days.</p>
+      <div class="field-group">
+        <label for="inv-link">Invite link</label>
+        <input type="text" id="inv-link" value="${esc(fullUrl)}" readonly onclick="this.select()">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal();renderAdmin()">Done</button>
+        <button class="btn-primary" onclick="copyInviteLink('${esc(url)}')">${ICONS.copy || ''} Copy link</button>
+      </div>`);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function copyInviteLink(url) {
+  const fullUrl = location.origin + url;
+  navigator.clipboard.writeText(fullUrl)
+    .then(() => toast('Invite link copied', 'success'))
+    .catch(() => toast(fullUrl, 'info'));
+}
+
+async function revokeInvite(id) {
+  if (!confirm('Revoke this invite? The link will stop working.')) return;
+  try {
+    await API.revokeInvite(id);
+    toast('Invite revoked', 'success');
+    renderAdmin();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── User lifecycle ──────────────────────────────────────────────────────────
+
+async function setUserActive(id, active) {
+  const verb = active ? 'Reactivate' : 'Deactivate';
+  if (!active && !confirm('Deactivate this user? They will no longer be able to sign in. Their signatures and history are preserved.')) return;
+  try {
+    await (active ? API.reactivateUser(id) : API.deactivateUser(id));
+    toast(`User ${active ? 'reactivated' : 'deactivated'}`, 'success');
+    renderAdmin();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function openResetPasswordModal(id, label) {
+  openModal('Reset password', `
+    <p class="text-sm text-secondary mb-16">Set a new password for <b>${esc(label)}</b>.
+      Share it with them securely; they can change it after signing in.</p>
+    <div class="field-group">
+      <label for="rp-new">New password</label>
+      <input type="password" id="rp-new" autocomplete="new-password" placeholder="Minimum 8 characters">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitResetPassword('${id}')">Set password</button>
+    </div>`);
+}
+
+async function submitResetPassword(id) {
+  const pw = document.getElementById('rp-new').value;
+  if (pw.length < 8) return toast('Password must be at least 8 characters', 'error');
+  try {
+    await API.adminResetPassword(id, pw);
+    closeModal();
+    toast('Password reset', 'success');
   } catch (err) { toast(err.message, 'error'); }
 }
 

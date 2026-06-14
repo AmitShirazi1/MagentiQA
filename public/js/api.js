@@ -26,8 +26,10 @@ const API = {
   auth: {
     me:       ()           => API.get('/auth/me'),
     login:    (username, pw) => API.post('/auth/login', { username, password: pw }),
-    register: (n, u, pw)     => API.post('/auth/register', { name: n, username: u, password: pw }),
     logout:   ()           => API.post('/auth/logout'),
+    getInvite:    (token)      => API.get(`/auth/invite/${token}`),
+    acceptInvite: (token, pw)  => API.post(`/auth/invite/${token}/accept`, { password: pw }),
+    changePassword: (current, next) => API.post('/auth/password', { currentPassword: current, newPassword: next }),
   },
 
   // Projects
@@ -78,6 +80,12 @@ const API = {
   audit:     (params = {}) => API.get('/audit' + toQuery(params)),
   users:     ()             => API.get('/users'),
   updateUser:(id, data)     => API.put(`/users/${id}`, data),
+  inviteUser:(data)         => API.post('/users/invite', data),
+  listInvites: ()           => API.get('/users/invites'),
+  revokeInvite: (id)        => API.delete(`/users/invites/${id}`),
+  deactivateUser: (id)      => API.post(`/users/${id}/deactivate`),
+  reactivateUser: (id)      => API.post(`/users/${id}/reactivate`),
+  adminResetPassword: (id, pw) => API.post(`/users/${id}/reset-password`, { newPassword: pw }),
   approvals: (params = {})  => API.get('/approvals' + toQuery(params)),
   createApproval: (data)    => API.post('/approvals', data),
   requestVersionApproval: (versionId, comment) => API.post('/approvals', { scope: 'VERSION', versionId, comment }),

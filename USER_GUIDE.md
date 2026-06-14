@@ -66,16 +66,17 @@ Project  →  Version  →  Verification (in that version)  →  Execution  → 
 
 Open the app in your browser (default **http://localhost:3000**).
 
-- **First ever account** you register becomes an **ADMIN**.
-- Everyone who registers afterwards becomes a **QA Engineer**; an admin can
-  promote them later (see [Users & roles](#15-admin-users--roles)).
-- Passwords must be at least 8 characters.
-
-If your team seeded demo data, you can log in with `sysadmin` / `admin123` and
-should change that password's account in a real deployment.
+- Accounts are created by an administrator — there is no public sign-up. The
+  initial admin logs in with the seeded account `sysadmin` / `admin123` (change
+  this password in a real deployment, via the account menu → **Change password**).
+- To add yourself, ask an admin to **invite** you. You'll receive a one-time link;
+  open it, set a password (at least 8 characters), and you're signed straight in.
+  See [Users & roles](#15-admin-users--roles).
+- Forgot your password? An admin can reset it for you.
 
 Your login persists across server restarts, and the browser **Back/Forward**
-buttons work throughout the app.
+buttons work throughout the app. You can change your own password any time from the
+account menu (top-right) → **Change password**.
 
 ---
 
@@ -417,21 +418,35 @@ detail. You can filter by entity, record, or user.
 
 The **Admin** page (visible to all signed-in users, with admin-only actions) shows:
 
-- **Users** — everyone registered, their role, and when they joined. An **ADMIN**
-  can **Edit Role**.
+- **Users** — everyone in the system, their role, status (Active/Inactive), and when
+  they joined. An **ADMIN** can **Edit Role**, **Reset password**, and
+  **Deactivate** / **Reactivate** an account.
+- **Pending invites** (appears when any are outstanding) — copy an invite link again,
+  or revoke it.
 - **Data Export** and **CI/CD** integration info.
 - **Backup & Restore** (ADMIN only) — see [next section](#16-backups--restore).
+
+**Inviting a user (ADMIN).** Click **Invite user**, enter their name, username, and
+role, and create the invite. You'll get a single-use link (valid 7 days) — copy it
+and send it to the person however you like. When they open it and set a password,
+their account is created and they're signed in.
+
+**Deactivating a user (ADMIN).** Deactivation blocks sign-in immediately but keeps
+the person's signatures and audit history intact (important for traceability) — so
+prefer it over deletion when someone leaves. Reactivate to restore access. You can't
+deactivate or demote the only remaining active admin.
 
 **Roles:**
 
 | Role | Typically… | Can additionally |
 |------|------------|------------------|
-| **ADMIN** | First account | Everything: change roles, delete projects, resolve approvals, create backups |
-| **QA Engineer** | Default for new sign-ups | Day-to-day work incl. deleting verifications |
+| **ADMIN** | The seeded `sysadmin`, or anyone an admin promotes | Everything: invite/deactivate users, change roles, reset passwords, delete projects, resolve approvals, create backups |
 | **Approver** | Assigned by admin | Approve/reject approvals |
-| **Reviewer** / **Developer** | Assigned by admin | Standard authenticated access |
+| **QA Engineer** | Default for invited accounts | Day-to-day work incl. deleting verifications |
 
-Permissions are enforced on the server, and the UI hides buttons you can't use.
+Permissions are enforced on the server, and the UI hides buttons you can't use. Every
+user-management action (invite, role change, deactivation, password reset) is recorded
+in the **Audit Trail**.
 
 ---
 

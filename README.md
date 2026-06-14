@@ -38,6 +38,7 @@ Project ──< Version ──< VersionTest >── TestDefinition ──< TestS
                             │        ├──< Signature   (HMAC-signed e-signature)
                             │        └──< Evidence    (uploaded files)
                             └──< Approval
+User ──< Invite   (admin-issued, single-use, expiring sign-up token)
 AuditLog  (immutable trail of every CREATE/UPDATE/DELETE/EXECUTE/SIGN/IMPORT/EXPORT)
 ```
 
@@ -52,7 +53,9 @@ AuditLog  (immutable trail of every CREATE/UPDATE/DELETE/EXECUTE/SIGN/IMPORT/EXP
 | **Signature** | FDA 21 CFR Part 11-style electronic signature: HMAC-SHA256 over `userId:entityId:timestamp:meaning` (`EXECUTED` / `REVIEWED` / `APPROVED`). Signs an **execution** (the per-verification "Verified By", auto-created on Review & Sign) or a **version** (the report's "Approved By"). Tampering is detectable via verify. |
 | **Evidence** | Files (screenshots, logs, videos, PDFs) attached to an execution; stored under `storage/evidence/<executionId>/`. |
 | **Approval** | A **version-level** sign-off request (`scope: 'VERSION'`). Requested manually, or automatically once the version reaches 100% coverage (every verification has a terminal verdict — Passed/Failed/Partial). An ADMIN/APPROVER resolving it as `APPROVED` writes the version's `APPROVED` signature (the report's "Approved By"); regressing below 100% withdraws an auto-request. (Legacy per-version-test approvals are still supported.) |
-| **AuditLog** | Immutable record of every verification-relevant event with user, timestamp, IP, and before/after diff (viewable in the Audit Trail page). |
+| **User** | An account: `name`, `username`, bcrypt `passwordHash`, `role` (ADMIN/APPROVER/QA_ENGINEER), and `active` (deactivated accounts can't log in but keep their signatures & history). |
+| **Invite** | An admin-issued, single-use, 7-day-expiring token carrying the new account's name/username/role. The invitee opens the link and sets a password to activate it. |
+| **AuditLog** | Immutable record of every verification-relevant event **and user-lifecycle change** (invite, account creation, role change, (de)activation, password change/reset) with user, timestamp, IP, and before/after diff. Logins and password values are never recorded. Viewable in the Audit Trail page. |
 
 ## Application Structure
 
@@ -62,8 +65,8 @@ lib/
   env.js                Minimal .env loader (no dependency)
   db.js                 SQLite data layer (better-sqlite3) — collection-style API
   session-store.js      SQLite-backed express-session store (logins survive restarts)
-  auth.js               Session auth, bcrypt password hashing, role helpers
-  audit.js              Audit-trail writer (filters to verification-relevant events)
+  auth.js               Session auth, bcrypt password hashing, role helpers, role migration
+  audit.js              Audit-trail writer (verification-relevant events + user-lifecycle changes; never logins or passwords)
   signature.js          HMAC-SHA256 electronic signatures (sign / verify)
   cleanup.js            Startup + daily sweeps: orphan evidence files + dangling version-test links
   pdf.js                Verification report generator (Puppeteer → PDF, HTML
@@ -83,13 +86,14 @@ lib/
     xlsx.js             .xlsx "test tracker" importer (jszip → dynamic setups table)
     tracker-link.js     Names a docx ↔ its "… test tracker.xlsx" for import pairing
 routes/
-  auth.js               POST /api/auth/{login,register,logout}, GET /api/auth/me
+  auth.js               POST /api/auth/{login,logout}, GET /api/auth/me, invite accept, self password change
   projects.js           Projects & versions CRUD (+ test inheritance, cascade delete)
   tests.js              Test definitions CRUD + version-test linking
   executions.js         Executions, step results, signatures, evidence upload, CI webhook
   google.js             Drive sync (import), report upload, version export to Drive
-  misc.js               Import (.docx/.md), exports (PDF/JSON), backups, audit, users,
-                        approvals, dashboard stats, templates
+  misc.js               Import (.docx/.md), exports (PDF/JSON), backups, audit, users
+                        (incl. invites, deactivation, password reset), approvals,
+                        dashboard stats, templates
 public/                 Single-page app (vanilla JS, no build step)
   index.html            Shell: login screen, sidebar, page containers, modal, toasts
   img/                  Static brand assets (magentiq-eye-logo.png — the PDF cover logo)
@@ -172,7 +176,7 @@ All routes are under `/api` and require a session cookie (log in first), except
 
 | Area | Endpoints |
 |------|-----------|
-| Auth | `POST /auth/login` · `POST /auth/register` (first account = ADMIN, later = QA_ENGINEER) · `POST /auth/logout` · `GET /auth/me` |
+| Auth | `POST /auth/login` · `POST /auth/logout` · `GET /auth/me` · `GET /auth/invite/:token` · `POST /auth/invite/:token/accept` (set password, activate) · `POST /auth/password` (self-service change) |
 | Projects | `GET/POST /projects` · `GET/PUT/DELETE /projects/:id` |
 | Versions | `GET/POST /projects/:pid/versions` · `GET/PUT /projects/:pid/versions/:vid` · `DELETE /projects/:pid/versions/:vid` (ADMIN, cascade) |
 | Tests | `GET/POST /tests` · `GET/PUT/DELETE /tests/:id` · `POST /tests/:id/convert` (STANDARD ↔ SETUP_TRACKED) |
@@ -182,7 +186,8 @@ All routes are under `/api` and require a session cookie (log in first), except
 | Import | `POST /import/preview` · `POST /import/folder` · `POST /import/save` · `POST /import/save-batch` |
 | Export | **(A)** `GET /export/report/:vid` — download the PDF report (results + approvals) · `GET /export/tests` · `GET /export/version/:vid` |
 | Backup | `POST /backup` (ADMIN, optional `{ label }`) · `GET /backups` · `GET /backups/:name/download` |
-| Misc | `GET /audit` · `GET /audit/:id` · `GET /users` · `PUT /users/:id` · `GET/POST/PUT /approvals` (version sign-off: `POST {scope:'VERSION',versionId}`) · `GET /dashboard/:vid` · `GET/POST /templates` |
+| Users (ADMIN) | `GET /users` · `PUT /users/:id` (name/role) · `POST /users/:id/deactivate` · `POST /users/:id/reactivate` · `POST /users/:id/reset-password` · `POST /users/invite` · `GET /users/invites` · `DELETE /users/invites/:id` |
+| Misc | `GET /audit` · `GET /audit/:id` · `GET/POST/PUT /approvals` (version sign-off: `POST {scope:'VERSION',versionId}`) · `GET /dashboard/:vid` · `GET/POST /templates` |
 | Google Drive | `GET /google/status` · `GET /google/folders` · `POST /google/sync` (import) · **(B)** `POST /google/upload-report` (PDF report → Drive) · **(C)** `POST /google/export-version` (blank templates → Drive) |
 | CI | `POST /executions/ci` (API-key auth, see below) |
 
@@ -334,7 +339,7 @@ The `.env` file is loaded automatically at startup (`lib/env.js`).
 - **Runtime**: Node.js ≥ 18 + Express 4 — no build step, no transpiler
 - **Database**: SQLite via `better-sqlite3` (WAL mode, single file `data/magentiqa.db`)
 - **Sessions**: `express-session` with a SQLite store — logins survive restarts
-- **Auth**: bcryptjs password hashing; roles: ADMIN, QA_ENGINEER, REVIEWER, APPROVER, DEVELOPER
+- **Auth**: bcryptjs password hashing; roles: ADMIN, APPROVER, QA_ENGINEER
 - **File parsing**: mammoth (`.docx`), gray-matter (`.md`), jszip (`.xlsx` trackers)
 - **PDF reports**: puppeteer-core driving an installed Chrome/Chromium
   (falls back to a self-contained HTML file if no browser is found)
@@ -343,23 +348,34 @@ The `.env` file is loaded automatically at startup (`lib/env.js`).
 
 ## Roles & Authorization
 
+Three roles. New accounts are created by an admin via an **invite link** (there is
+no self-registration); the invitee opens the link once and sets their own password.
+
 | Role | Granted to | Can additionally… |
 |------|-----------|-------------------|
-| `ADMIN` | First registered account | Everything: change user roles, delete projects, resolve approvals |
-| `QA_ENGINEER` | Every later registration (default) | Full day-to-day work incl. deleting test definitions |
+| `ADMIN` | The seeded `sysadmin`; assigned by an admin | Everything: invite/deactivate users, change roles, reset passwords, delete projects, resolve approvals, backups |
 | `APPROVER` | Assigned by an admin | Resolve (approve/reject) approvals |
-| `REVIEWER` / `DEVELOPER` | Assigned by an admin | Standard authenticated access |
+| `QA_ENGINEER` | Default for invited accounts | Full day-to-day work incl. deleting test definitions |
 
-Enforced server-side: `PUT /api/users/:id` (ADMIN), `DELETE /api/projects/:id`
-(ADMIN), `PUT /api/approvals/:id` (ADMIN/APPROVER), `DELETE /api/tests/:id`
-(ADMIN/QA_ENGINEER). The UI hides the corresponding buttons for other roles.
+Enforced server-side: all `/api/users*` admin actions (ADMIN),
+`DELETE /api/projects/:id` (ADMIN), `PUT /api/approvals/:id` (ADMIN/APPROVER),
+`DELETE /api/tests/:id` (ADMIN/QA_ENGINEER). The UI hides the corresponding buttons
+for other roles.
+
+**Account lifecycle.** Deactivation is soft (`user.active = false`) — it blocks login
+and existing sessions but preserves the user's signatures and audit history; accounts
+can be reactivated. A guard prevents demoting or deactivating the only active admin.
+All user-lifecycle changes (invite, creation, role change, (de)activation, password
+change/reset) are written to the audit trail; password values are never stored. On
+startup any user whose stored role predates the current set is migrated to
+`QA_ENGINEER` (idempotent).
 
 ## Security Notes (current posture)
 
 - Designed for **trusted internal networks**. The server binds HTTP (no TLS);
   put it behind a reverse proxy with HTTPS for anything beyond localhost and set
   `cookie.secure = true` in `server.js`.
-- Self-registration is open (anyone reaching the server can create a
-  QA_ENGINEER account). Remove the register route in `routes/auth.js` if you
-  want admin-provisioned accounts only.
+- Accounts are admin-provisioned via invite links — there is no open
+  self-registration. The first admin is the seeded `sysadmin` (`npm run seed`).
+  Invite tokens are single-use and expire after 7 days.
 - Dependencies are kept minimal (9 runtime packages) and `npm audit` clean.

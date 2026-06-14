@@ -3,9 +3,10 @@ const router   = express.Router();
 const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
+const crypto   = require('crypto');
 const db       = require('../lib/db');
 const { audit }           = require('../lib/audit');
-const { requireAuth, requireRole } = require('../lib/auth');
+const { requireAuth, requireRole, setUserPassword, ROLES } = require('../lib/auth');
 const { parseDocxTest }   = require('../lib/parsers/docx');
 const { parseMarkdownTest } = require('../lib/parsers/markdown');
 const { parseXlsxTracker } = require('../lib/parsers/xlsx');
@@ -401,18 +402,108 @@ router.get('/audit/:id', requireAuth, (req, res) => {
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 
+// A user is treated as active unless explicitly deactivated (legacy rows have no flag).
+const isActive = (u) => u.active !== false;
+
+// True if `userId` is the only active ADMIN — used to guard against locking everyone out.
+function isLastActiveAdmin(userId) {
+  const admins = db.users.findAll({ role: 'ADMIN' }).filter(isActive);
+  return admins.length === 1 && admins[0].id === userId;
+}
+
 router.get('/users', requireAuth, (req, res) => {
-  const users = db.users.findAll().map(u => { const { passwordHash, ...s } = u; return s; });
+  const users = db.users.findAll().map(u => {
+    const { passwordHash, ...s } = u;
+    return { ...s, active: isActive(u) };
+  });
   res.json(users);
+});
+
+// Create an invite link for a new account. The invitee sets their own password.
+router.post('/users/invite', requireAuth, requireRole('ADMIN'), (req, res) => {
+  const name = (req.body.name || '').trim();
+  const username = (req.body.username || '').trim();
+  const { role } = req.body;
+  if (!username) return res.status(400).json({ error: 'Username is required' });
+  if (!ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  if (db.users.findOne({ username })) return res.status(409).json({ error: 'A user with that username already exists' });
+  const pending = db.invites.findOne({ username });
+  if (pending && !pending.usedAt) return res.status(409).json({ error: 'An invite for that username is already pending' });
+
+  const token = crypto.randomBytes(24).toString('hex');
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const invite = db.invites.create({ name, username, role, token, expiresAt, usedAt: null });
+  audit(req.user.id, 'CREATE', 'users', invite.id, null,
+    { event: 'invite', username, role }, req);
+  res.status(201).json({ invite, url: `/?invite=${token}` });
+});
+
+// List still-pending invites (unused + not expired).
+router.get('/users/invites', requireAuth, requireRole('ADMIN'), (req, res) => {
+  const now = new Date().toISOString();
+  const invites = db.invites.findAll()
+    .filter(i => !i.usedAt && (!i.expiresAt || i.expiresAt >= now))
+    .map(i => ({ id: i.id, name: i.name, username: i.username, role: i.role,
+                 expiresAt: i.expiresAt, createdAt: i.createdAt,
+                 url: `/?invite=${i.token}` }));
+  res.json(invites);
+});
+
+// Revoke a pending invite.
+router.delete('/users/invites/:id', requireAuth, requireRole('ADMIN'), (req, res) => {
+  const invite = db.invites.findById(req.params.id);
+  if (!invite) return res.status(404).json({ error: 'Not found' });
+  db.invites.delete(req.params.id);
+  audit(req.user.id, 'DELETE', 'users', invite.id, { event: 'invite', username: invite.username }, null, req);
+  res.json({ ok: true });
 });
 
 router.put('/users/:id', requireAuth, requireRole('ADMIN'), (req, res) => {
   const { name, role } = req.body;
   const user = db.users.findById(req.params.id);
   if (!user) return res.status(404).json({ error: 'Not found' });
+  if (role !== undefined && !ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  if (role && role !== 'ADMIN' && user.role === 'ADMIN' && isLastActiveAdmin(user.id)) {
+    return res.status(409).json({ error: 'Cannot change the role of the only active administrator' });
+  }
+  const before = { name: user.name, role: user.role };
   const updated = db.users.update(req.params.id, { name, role });
+  audit(req.user.id, 'UPDATE', 'users', updated.id, before, { name: updated.name, role: updated.role }, req);
   const { passwordHash, ...safe } = updated;
-  res.json(safe);
+  res.json({ ...safe, active: isActive(updated) });
+});
+
+// Deactivate an account (soft — blocks login but preserves signatures & audit history).
+router.post('/users/:id/deactivate', requireAuth, requireRole('ADMIN'), (req, res) => {
+  const user = db.users.findById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+  if (isLastActiveAdmin(user.id)) return res.status(409).json({ error: 'Cannot deactivate the only active administrator' });
+  const updated = db.users.update(req.params.id, { active: false });
+  audit(req.user.id, 'UPDATE', 'users', updated.id, { active: true }, { active: false }, req);
+  const { passwordHash, ...safe } = updated;
+  res.json({ ...safe, active: false });
+});
+
+router.post('/users/:id/reactivate', requireAuth, requireRole('ADMIN'), (req, res) => {
+  const user = db.users.findById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+  const updated = db.users.update(req.params.id, { active: true });
+  audit(req.user.id, 'UPDATE', 'users', updated.id, { active: false }, { active: true }, req);
+  const { passwordHash, ...safe } = updated;
+  res.json({ ...safe, active: true });
+});
+
+// Admin-forced password reset.
+router.post('/users/:id/reset-password', requireAuth, requireRole('ADMIN'), async (req, res) => {
+  const user = db.users.findById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters' });
+  }
+  await setUserPassword(user.id, newPassword);
+  audit(req.user.id, 'UPDATE', 'users', user.id, null, { event: 'password-reset', username: user.username }, req);
+  res.json({ ok: true });
 });
 
 // ── Approvals ─────────────────────────────────────────────────────────────────

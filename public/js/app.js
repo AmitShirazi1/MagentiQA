@@ -6,6 +6,11 @@ let currentPage = 'dashboard';
 // ── Boot ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   applyStoredTheme();
+
+  // Invite acceptance link: /?invite=<token> — show the set-password view (pre-auth).
+  const inviteToken = new URLSearchParams(location.search).get('invite');
+  if (inviteToken) { return showInvite(inviteToken); }
+
   try {
     const { user } = await API.auth.me();
     if (user) {
@@ -43,8 +48,7 @@ function showApp() {
 
 function roleLabel(role) {
   const labels = {
-    ADMIN: 'Administrator', QA_ENGINEER: 'QA Engineer', REVIEWER: 'Reviewer',
-    APPROVER: 'Approver', DEVELOPER: 'Developer',
+    ADMIN: 'Administrator', APPROVER: 'Approver', QA_ENGINEER: 'QA Engineer',
   };
   return labels[role] || role || '—';
 }
@@ -68,16 +72,45 @@ async function handleLogin(e) {
   }
 }
 
-async function handleRegister(e) {
-  e.preventDefault();
-  const name = document.getElementById('reg-name').value;
-  const username = document.getElementById('reg-username').value;
-  const pw = document.getElementById('reg-password').value;
-  const errEl = document.getElementById('reg-error');
+// ── Invite acceptance ───────────────────────────────────────────────────────
+async function showInvite(token) {
+  document.getElementById('app').classList.add('hidden');
+  const loginScreen = document.getElementById('login-screen');
+  loginScreen.classList.remove('hidden');
+  document.getElementById('login-form').classList.add('hidden');
+  const inviteForm = document.getElementById('invite-form');
+  const errEl = document.getElementById('invite-error');
   try {
-    errEl.classList.add('hidden');
-    const { user } = await API.auth.register(name, username, pw);
+    const invite = await API.auth.getInvite(token);
+    document.getElementById('invite-name').value = invite.name || '';
+    document.getElementById('invite-username').value = invite.username || '';
+    inviteForm.dataset.token = token;
+    inviteForm.classList.remove('hidden');
+  } catch (err) {
+    inviteForm.classList.remove('hidden');
+    inviteForm.querySelectorAll('input, button').forEach(el => { el.disabled = true; });
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function handleAcceptInvite(e) {
+  e.preventDefault();
+  const token = document.getElementById('invite-form').dataset.token;
+  const pw  = document.getElementById('invite-password').value;
+  const pw2 = document.getElementById('invite-password2').value;
+  const errEl = document.getElementById('invite-error');
+  errEl.classList.add('hidden');
+  if (pw !== pw2) {
+    errEl.textContent = 'Passwords do not match';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  try {
+    const { user } = await API.auth.acceptInvite(token, pw);
     currentUser = user;
+    // Drop the ?invite token from the URL, then enter the app.
+    history.replaceState({}, '', '/');
     showApp();
     navigate('dashboard');
     pollApprovalBadge();
@@ -92,13 +125,6 @@ async function logout() {
   currentUser = null;
   closePopovers();
   showLogin();
-}
-
-function switchAuthTab(tab) {
-  document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
-  document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
-  document.getElementById('auth-tab-login').classList.toggle('active', tab === 'login');
-  document.getElementById('auth-tab-register').classList.toggle('active', tab === 'register');
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
@@ -242,6 +268,10 @@ function toggleUserMenu(e) {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
         Admin &amp; settings
       </button>
+      <button class="menu-item" onclick="toggleUserMenu(event);openChangePasswordModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Change password
+      </button>
       <div class="menu-sep"></div>
       <button class="menu-item danger" onclick="logout()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -249,6 +279,39 @@ function toggleUserMenu(e) {
       </button>
     </div>`;
   pop.classList.remove('hidden');
+}
+
+function openChangePasswordModal() {
+  openModal('Change password', `
+    <div class="field-group">
+      <label for="cp-current">Current password</label>
+      <input type="password" id="cp-current" autocomplete="current-password">
+    </div>
+    <div class="field-group">
+      <label for="cp-new">New password</label>
+      <input type="password" id="cp-new" autocomplete="new-password" placeholder="Minimum 8 characters">
+    </div>
+    <div class="field-group">
+      <label for="cp-new2">Confirm new password</label>
+      <input type="password" id="cp-new2" autocomplete="new-password">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitChangePassword()">Update password</button>
+    </div>`);
+}
+
+async function submitChangePassword() {
+  const current = document.getElementById('cp-current').value;
+  const next  = document.getElementById('cp-new').value;
+  const next2 = document.getElementById('cp-new2').value;
+  if (next.length < 8) return toast('New password must be at least 8 characters', 'error');
+  if (next !== next2)   return toast('Passwords do not match', 'error');
+  try {
+    await API.auth.changePassword(current, next);
+    closeModal();
+    toast('Password updated', 'success');
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 // ── Global search ─────────────────────────────────────────────────────────────

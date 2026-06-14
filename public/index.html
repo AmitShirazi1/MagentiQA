@@ -18,11 +18,6 @@
       <span class="brand-mark">Magenti<span class="brand-q">QA</span></span>
       <span class="brand-sub">Verification Management Platform</span>
     </div>
-    <div class="seg-control login-tabs">
-      <button class="seg-btn active" id="auth-tab-login" onclick="switchAuthTab('login')">Sign In</button>
-      <button class="seg-btn" id="auth-tab-register" onclick="switchAuthTab('register')">Register</button>
-    </div>
-
     <form id="login-form" onsubmit="handleLogin(event)">
       <div class="field-group">
         <label for="login-username">Username</label>
@@ -34,24 +29,30 @@
       </div>
       <div id="login-error" class="form-error hidden"></div>
       <button type="submit" class="btn-primary full-width">Sign In</button>
+      <p class="hint-text">Accounts are created by an administrator. Ask your admin for an invite link.</p>
     </form>
 
-    <form id="register-form" class="hidden" onsubmit="handleRegister(event)">
+    <!-- Invite acceptance — shown only when the page is opened with ?invite=<token> -->
+    <form id="invite-form" class="hidden" onsubmit="handleAcceptInvite(event)">
+      <p class="hint-text" id="invite-intro">You've been invited to MagentiQA. Set a password to activate your account.</p>
       <div class="field-group">
-        <label for="reg-name">Full Name</label>
-        <input type="text" id="reg-name" placeholder="Jane Smith" autocomplete="name" required>
+        <label for="invite-name">Full Name</label>
+        <input type="text" id="invite-name" autocomplete="name" disabled>
       </div>
       <div class="field-group">
-        <label for="reg-username">Username</label>
-        <input type="text" id="reg-username" placeholder="jsmith" autocomplete="username" required>
+        <label for="invite-username">Username</label>
+        <input type="text" id="invite-username" autocomplete="username" disabled>
       </div>
       <div class="field-group">
-        <label for="reg-password">Password</label>
-        <input type="password" id="reg-password" placeholder="Minimum 8 characters" autocomplete="new-password" required minlength="8">
+        <label for="invite-password">Password</label>
+        <input type="password" id="invite-password" placeholder="Minimum 8 characters" autocomplete="new-password" required minlength="8">
       </div>
-      <div id="reg-error" class="form-error hidden"></div>
-      <button type="submit" class="btn-primary full-width">Create Account</button>
-      <p class="hint-text">The first account becomes Admin; later accounts start as QA Engineer.</p>
+      <div class="field-group">
+        <label for="invite-password2">Confirm Password</label>
+        <input type="password" id="invite-password2" placeholder="Re-enter password" autocomplete="new-password" required minlength="8">
+      </div>
+      <div id="invite-error" class="form-error hidden"></div>
+      <button type="submit" class="btn-primary full-width">Set password &amp; sign in</button>
     </form>
   </div>
 </div>

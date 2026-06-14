@@ -21,6 +21,12 @@ for (const d of dirs) {
 
 const { SQLiteSessionStore } = require('./lib/session-store');
 const { scheduleSweeps } = require('./lib/cleanup');
+const { migrateRoles } = require('./lib/auth');
+
+// One-time, idempotent: rewrite any retired/legacy role (e.g. REVIEWER, DEVELOPER)
+// to QA_ENGINEER so stored data always matches the current ROLES set.
+const migratedRoles = migrateRoles();
+if (migratedRoles) console.log(`[migrate] reassigned ${migratedRoles} user(s) to QA_ENGINEER`);
 
 // ── App ───────────────────────────────────────────────────────────────────
 const app = express();

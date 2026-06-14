@@ -640,6 +640,8 @@ tbody td { padding: 11px 16px; vertical-align: middle; color: var(--text-primary
 .table-empty-cell { text-align: center; color: var(--text-muted); padding: 28px !important; }
 
 /* ── Status Badges ─────────────────────────────────────────────────────────── */
+tr.row-muted td { opacity: 0.55; }
+
 .badge {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 2.5px 9px;
@@ -661,7 +663,7 @@ tbody td { padding: 11px 16px; vertical-align: middle; color: var(--text-primary
 }
 .badge.no-dot::before { display: none; }
 
-.badge-passed, .badge-pass, .badge-approved, .badge-verified, .badge-released
+.badge-passed, .badge-pass, .badge-approved, .badge-verified, .badge-released, .badge-active
   { background: var(--pass-dim); color: var(--pass); }
 .badge-failed, .badge-fail, .badge-rejected
   { background: var(--fail-dim); color: var(--fail); }
@@ -675,7 +677,7 @@ tbody td { padding: 11px 16px; vertical-align: middle; color: var(--text-primary
   { background: var(--purple-dim); color: var(--purple); }
 .badge-not_started, .badge-draft, .badge-skip, .badge-n_a, .badge-not_applicable, .badge-not_tested, .badge-unknown
   { background: var(--neutral-dim); color: var(--text-secondary); }
-.badge-obsolete, .badge-archived
+.badge-obsolete, .badge-archived, .badge-inactive
   { background: var(--neutral-dim); color: var(--text-muted); }
 .badge-automated, .badge-info
   { background: var(--info-dim); color: var(--info); }
