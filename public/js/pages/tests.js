@@ -70,11 +70,19 @@ async function renderVersionDetail(params = {}) {
           <span class="t-meta ml-auto tabular">${groupPassed}/${tests.length} passed</span>
         </div>
         <div class="table-wrap" id="tg-${gi}">
-          <table>
+          <table class="vd-table">
+            <colgroup>
+              <col class="vd-col-id">
+              <col class="vd-col-title">
+              <col class="vd-col-actions">
+              <col class="vd-col-tags">
+              <col class="vd-col-status">
+              <col class="vd-col-lastrun">
+            </colgroup>
             <thead><tr>
               ${sortableTH('ID')}
               ${sortableTH('Title')}
-              <th style="width:200px">Actions</th>
+              <th>Actions</th>
               <th>Tags</th>
               ${sortableTH('Status')}
               ${sortableTH('Last Run')}
@@ -85,7 +93,7 @@ async function renderVersionDetail(params = {}) {
                 return `
                 <tr data-status="${esc(vt.status || '')}">
                   <td class="mono">${esc(vt.test?.testId || '—')}</td>
-                  <td>
+                  <td class="vd-title" title="${esc(vt.test?.title || '')}">
                     <span class="clickable-title" onclick="openTestContentModal('${vt.id}','${versionId}')">${esc(vt.test?.title || '—')}</span>
                   </td>
                   <td>

@@ -639,6 +639,20 @@ tbody td { padding: 11px 16px; vertical-align: middle; color: var(--text-primary
 
 .table-empty-cell { text-align: center; color: var(--text-muted); padding: 28px !important; }
 
+/* Version-detail tables: one table per tag group, so a fixed layout with a shared
+   colgroup is what keeps every group's columns aligned regardless of its content.
+   The Title column takes the leftover width and truncates with an ellipsis (full
+   text on hover via the cell's title attribute). */
+.vd-table { table-layout: fixed; }
+.vd-col-id      { width: 116px; }
+.vd-col-actions { width: 224px; }
+.vd-col-tags    { width: 220px; }
+.vd-col-status  { width: 150px; }
+.vd-col-lastrun { width: 132px; }
+/* .vd-col-title has no width — it absorbs the remaining space, identically in
+   every group table since they share the same container width. */
+.vd-table td.vd-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ── Status Badges ─────────────────────────────────────────────────────────── */
 tr.row-muted td { opacity: 0.55; }
 
