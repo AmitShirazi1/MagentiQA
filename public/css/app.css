@@ -1016,6 +1016,21 @@ input.invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--fail) 18%, 
 .progress-bar { height: 100%; background: var(--pass); border-radius: 10px; transition: width 0.4s var(--ease); }
 .progress-label { font-size: 11.5px; color: var(--text-muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
 
+/* Import progress — magenta fill tracks real upload bytes, then an indeterminate
+   sweep covers the server-side parse so the page never looks frozen. */
+.import-progress { margin-top: 4px; }
+.import-progress .progress-bar-wrap { height: 8px; }
+.import-progress .progress-bar { background: var(--brand); }
+.import-progress .progress-bar-wrap.indeterminate { position: relative; }
+.import-progress .progress-bar-wrap.indeterminate .progress-bar {
+  width: 35%; transition: none;
+  animation: importSweep 1.15s var(--ease) infinite;
+}
+@keyframes importSweep {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(330%); }
+}
+
 /* Stacked progress overview — a thin segmented bar with a small, low-contrast
    summary label aligned to the track's left edge. Per-status counts stay in the
    bar's hover tooltips and the legend, keeping the readout uncluttered. */

@@ -119,6 +119,39 @@ async function renderImport(params = {}) {
   await renderGdrivePanel();
 }
 
+// ── Progress bar ──────────────────────────────────────────────────────────────
+// Renders a progress bar into a status container and returns handles to drive it.
+// Real upload byte-progress fills the bar; once the bytes are up and the server
+// is parsing, it switches to an indeterminate sweep so the page never looks frozen.
+function showImportProgress(containerId, label) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = `
+    <div class="import-progress">
+      <div class="progress-bar-wrap"><div class="progress-bar"></div></div>
+      <div class="progress-label"></div>
+    </div>`;
+  const wrap = container.querySelector('.progress-bar-wrap');
+  const bar  = container.querySelector('.progress-bar');
+  const lbl  = container.querySelector('.progress-label');
+  lbl.textContent = label || 'Uploading…';
+  return {
+    // Determinate fill while bytes upload (0–100).
+    upload(pct) {
+      wrap.classList.remove('indeterminate');
+      bar.style.width = pct + '%';
+      lbl.textContent = `Uploading… ${pct}%`;
+    },
+    // Indeterminate sweep while the server works (no measurable progress).
+    pending(msg) {
+      wrap.classList.add('indeterminate');
+      bar.style.width = '';
+      lbl.textContent = msg;
+    },
+    clear() { container.innerHTML = ''; },
+    fail(msg) { container.innerHTML = `<div class="form-error">${msg}</div>`; },
+  };
+}
+
 // ── Tab switching ─────────────────────────────────────────────────────────────
 function switchImportTab(tab) {
   document.getElementById('import-gdrive-mode').classList.toggle('hidden', tab !== 'gdrive');
@@ -191,16 +224,17 @@ async function gdriveSync() {
 
   const btn = document.getElementById('gdrive-sync-btn');
   btn.disabled = true;
-  document.getElementById('gdrive-status').innerHTML = '<p class="text-muted">Reading Docs from Drive…</p>';
+  const prog = showImportProgress('gdrive-status', '');
+  prog.pending('Reading and parsing Docs from Drive…');
 
   try {
     const data = await API.google.sync(folder);
     _folderParsedItems = data.results.filter(r => r.ok && r.parsed);
     renderFolderPreview(_folderParsedItems, data.results);
-    document.getElementById('gdrive-status').innerHTML =
-      data.total === 0 ? '<div class="form-error">No Google Docs found in that folder.</div>' : '';
+    if (data.total === 0) prog.fail('No Google Docs found in that folder.');
+    else prog.clear();
   } catch (err) {
-    document.getElementById('gdrive-status').innerHTML = `<div class="form-error">${esc(err.message)}</div>`;
+    prog.fail(esc(err.message));
   } finally {
     btn.disabled = false;
   }
@@ -241,11 +275,12 @@ async function handleImportDrop(event) {
 }
 
 async function doImportPreview(file) {
-  document.getElementById('import-status').innerHTML = `<p class="text-muted">Parsing ${esc(file.name)}…</p>`;
+  const prog = showImportProgress('import-status', `Uploading ${esc(file.name)}…`);
   const fd = new FormData();
   fd.append('file', file);
   try {
-    const result = await API.importPreview(fd);
+    const result = await API.uploadProgress('/import/preview', fd,
+      pct => pct < 100 ? prog.upload(pct) : prog.pending(`Parsing ${esc(file.name)}…`));
     _importParsed = result.parsed;
 
     const tracker = result.parsed.tracker;
@@ -287,9 +322,9 @@ async function doImportPreview(file) {
         </div>` : ''}`;
 
     document.getElementById('import-preview').classList.remove('hidden');
-    document.getElementById('import-status').innerHTML = '';
+    prog.clear();
   } catch (err) {
-    document.getElementById('import-status').innerHTML = `<div class="form-error">${err.message}</div>`;
+    prog.fail(err.message);
   }
 }
 
@@ -380,7 +415,7 @@ async function processFolderFiles(files, fromDrop = false) {
     return;
   }
 
-  document.getElementById('folder-status').innerHTML = `<p class="text-muted">Uploading and parsing ${supported.length} file(s)…</p>`;
+  const prog = showImportProgress('folder-status', `Uploading ${supported.length} file(s)…`);
 
   const fd = new FormData();
   const relativePaths = [];
@@ -394,20 +429,16 @@ async function processFolderFiles(files, fromDrop = false) {
   fd.append('relativePaths', JSON.stringify(relativePaths));
 
   try {
-    const response = await fetch('/api/import/folder', {
-      method: 'POST',
-      body: fd,
-    });
-    if (!response.ok) throw new Error(await response.text());
-    const data = await response.json();
+    const data = await API.uploadProgress('/import/folder', fd,
+      pct => pct < 100 ? prog.upload(pct) : prog.pending(`Parsing ${supported.length} file(s) on the server…`));
 
     // Only keep successfully parsed items
     _folderParsedItems = data.results.filter(r => r.ok && r.parsed);
 
     renderFolderPreview(_folderParsedItems, data.results);
-    document.getElementById('folder-status').innerHTML = '';
+    prog.clear();
   } catch (err) {
-    document.getElementById('folder-status').innerHTML = `<div class="form-error">${err.message}</div>`;
+    prog.fail(err.message);
   }
 }
 

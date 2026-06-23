@@ -251,6 +251,9 @@ Go to the **Import** page. There are three tabs:
 - **Google Drive** — read documents straight from a Drive folder (see
   [next section](#9-google-drive-sync-optional)).
 
+A progress bar tracks the upload and parsing, so a large file or folder never
+looks like a frozen page — wait for it to finish before reviewing the preview.
+
 **Supported formats:**
 
 - **`.md`** — front-matter or `# Title`, optional `## Configuration`, `## Files`,

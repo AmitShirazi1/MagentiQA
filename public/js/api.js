@@ -22,6 +22,27 @@ const API = {
   delete: (path)         => API.req('DELETE', path),
   upload: (path, form)   => API.req('POST',   path, form, true),
 
+  // Like upload(), but reports upload byte progress via onProgress(pct 0–100).
+  // Uses XMLHttpRequest because fetch() can't observe upload progress.
+  uploadProgress: (path, form, onProgress) => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api' + path);
+    xhr.withCredentials = true;
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+    }
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+      else reject(new Error(data.error || `HTTP ${xhr.status}`));
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.send(form);
+  }),
+
   // Auth
   auth: {
     me:       ()           => API.get('/auth/me'),
