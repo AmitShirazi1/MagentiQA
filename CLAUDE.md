@@ -63,3 +63,15 @@ How to do it well:
 - For server/route changes, boot on a spare port (e.g. `PORT=3999 node server.js`)
   and exercise the affected endpoint rather than assuming it works.
 - Don't commit/push unless asked.
+
+## Acting as a user — always use `sysadmin`
+
+Whenever you need to act *as a user* against a running app or the database — API
+calls, logins, GUI clicks, manual verification, seeding/exercising data — do it as
+the seeded **`sysadmin` / `admin123`** account. **Never create throwaway users**
+(or other test records you can't account for later): every authenticated action is
+written to the immutable audit trail, and the operator must be able to recognize
+every entry. `sysadmin` is ADMIN, so it can reach any endpoint you'd need to test.
+If a flow genuinely requires a specific role you can't exercise as `sysadmin`, ask
+first rather than inventing accounts. Clean up any non-audit test data you create
+(test definitions, projects, uploads) when you're done.
