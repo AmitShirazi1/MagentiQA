@@ -160,7 +160,7 @@ router.put('/:id', requireAuth, (req, res) => {
   res.json({ ...decorateTest(updated), steps: savedSteps });
 });
 
-router.delete('/:id', requireAuth, requireRole('ADMIN', 'QA_ENGINEER'), (req, res) => {
+router.delete('/:id', requireAuth, requireRole('ADMIN', 'QA_ENGINEER', 'APPROVER'), (req, res) => {
   const before = db.tests.findById(req.params.id);
   if (!before) return res.status(404).json({ error: 'Not found' });
   db.transaction(() => {

@@ -354,13 +354,13 @@ no self-registration); the invitee opens the link once and sets their own passwo
 | Role | Granted to | Can additionally… |
 |------|-----------|-------------------|
 | `ADMIN` | The seeded `sysadmin`; assigned by an admin | Everything: invite/deactivate users, change roles, reset passwords, delete projects, resolve approvals, backups |
-| `APPROVER` | Assigned by an admin | Resolve (approve/reject) approvals |
+| `APPROVER` | Assigned by an admin | Resolve (approve/reject) approvals; delete verification definitions |
 | `QA_ENGINEER` | Default for invited accounts | Full day-to-day work incl. deleting test definitions |
 
 Enforced server-side: all `/api/users*` admin actions (ADMIN),
 `DELETE /api/projects/:id` (ADMIN), `PUT /api/approvals/:id` (ADMIN/APPROVER),
-`DELETE /api/tests/:id` (ADMIN/QA_ENGINEER). The UI hides the corresponding buttons
-for other roles.
+`DELETE /api/tests/:id` (ADMIN/QA_ENGINEER/APPROVER). The UI hides the corresponding
+buttons for other roles.
 
 **Account lifecycle.** Deactivation is soft (`user.active = false`) — it blocks login
 and existing sessions but preserves the user's signatures and audit history; accounts
