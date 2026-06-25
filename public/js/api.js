@@ -130,6 +130,7 @@ const API = {
   google: {
     status:       ()             => API.get('/google/status'),
     folders:      (parent)       => API.get('/google/folders' + toQuery(parent ? { parent } : {})),
+    createFolder: (parent, name) => API.post('/google/folders', { parent, name }),
     folderInfo:   (id)           => API.get('/google/folder-info' + toQuery({ id })),
     sync:         (folder)       => API.post('/google/sync', { folder }),
     disconnect:   ()             => API.post('/google/disconnect'),

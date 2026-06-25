@@ -1602,6 +1602,11 @@ function renderSetupOverview() {
   const performed = setups.filter(s => _exec.execBySetup[s.setupId]).length;
   const passed    = setups.filter(s => _exec.execBySetup[s.setupId] === 'PASSED').length;
 
+  // Preserve the list's scroll position: this re-renders on every setup switch,
+  // and rebuilding innerHTML would otherwise snap the scrolled list back to the
+  // top, throwing the user away from the setup they just clicked.
+  const prevScroll = el.querySelector('.setup-ov-list')?.scrollTop || 0;
+
   el.innerHTML = `
     <div class="setup-ov-head">
       <span class="t-meta"><b class="tabular">${performed}</b>/${setups.length} performed${passed ? ` · ${passed} passed` : ''}</span>
@@ -1630,6 +1635,11 @@ function renderSetupOverview() {
         <span class="setup-ov-id text-muted">— Not setup-specific —</span>
       </div>
     </div>`;
+
+  if (prevScroll) {
+    const list = el.querySelector('.setup-ov-list');
+    if (list) list.scrollTop = prevScroll;
+  }
 }
 
 // Jump to a setup from the sidebar navigator — the single, authoritative

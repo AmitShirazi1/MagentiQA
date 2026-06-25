@@ -188,7 +188,7 @@ All routes are under `/api` and require a session cookie (log in first), except
 | Backup | `POST /backup` (ADMIN, optional `{ label }`) · `GET /backups` · `GET /backups/:name/download` |
 | Users (ADMIN) | `GET /users` · `PUT /users/:id` (name/role) · `POST /users/:id/deactivate` · `POST /users/:id/reactivate` · `POST /users/:id/reset-password` · `POST /users/invite` · `GET /users/invites` · `DELETE /users/invites/:id` |
 | Misc | `GET /audit` · `GET /audit/:id` · `GET/POST/PUT /approvals` (version sign-off: `POST {scope:'VERSION',versionId}`) · `GET /dashboard/:vid` · `GET/POST /templates` |
-| Google Drive | `GET /google/status` · `GET /google/folders` · `POST /google/sync` (import) · **(B)** `POST /google/upload-report` (PDF report → Drive) · **(C)** `POST /google/export-version` (blank templates → Drive) |
+| Google Drive | `GET /google/status` · `GET /google/folders` (list) · `POST /google/folders` (create subfolder) · `POST /google/sync` (import) · **(B)** `POST /google/upload-report` (PDF report → Drive) · **(C)** `POST /google/export-version` (blank templates → Drive) |
 | CI | `POST /executions/ci` (API-key auth, see below) |
 
 ### CI/CD Webhook

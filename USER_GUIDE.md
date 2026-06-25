@@ -283,7 +283,8 @@ can read them directly — no manual download.
 
 1. Import page → **Google Drive** tab → **Connect Google Drive** (one-time OAuth).
 2. Browse to the folder (shared folders, "Shared with me", and shortcuts are
-   supported) and **Sync**.
+   supported) and **Sync**. Need a folder that doesn't exist yet? **New folder**
+   in the picker creates one inside the folder you're viewing and steps into it.
 3. Native Google Docs are read as structured content; `.docx` and `.xlsx` files in
    Drive are downloaded and run through the same parser as a manual import.
    Subfolder names along each file's path become tags.

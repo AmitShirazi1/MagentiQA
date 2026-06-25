@@ -5,6 +5,8 @@
  * GET  /api/google/connect        — start OAuth (browser navigation)
  * GET  /api/google/callback       — OAuth redirect target
  * POST /api/google/disconnect     — forget stored tokens
+ * GET  /api/google/folders        — list subfolders of a folder ('root' = My Drive)
+ * POST /api/google/folders        — create a subfolder → { id, name }
  * GET  /api/google/folder-info    — resolve folder URL/ID → { id, name }
  * POST /api/google/sync           — list Docs in a folder, parse each via Docs API
  * POST /api/google/upload-report  — generate version PDF and upload it to Drive
@@ -100,6 +102,24 @@ router.get('/folders', requireAuth, async (req, res) => {
     const parent = google.extractFolderId(req.query.parent) || 'root';
     const folders = await google.listSubfolders(parent);
     res.json({ ok: true, parent, folders });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Create a subfolder in the picker ('root' = My Drive) ────────────────────
+
+router.post('/folders', requireAuth, async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Folder name required' });
+    const rawParent = req.body.parent;
+    if (rawParent === 'sharedWithMe') {
+      return res.status(400).json({ error: "Can't create a folder in “Shared with me” — open a folder first" });
+    }
+    const parent = google.extractFolderId(rawParent) || 'root';
+    const id = await google.findOrCreateFolder(parent, name);
+    res.json({ ok: true, id, name });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

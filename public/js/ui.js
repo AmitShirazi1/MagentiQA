@@ -136,10 +136,11 @@ async function gdriveBrowserLoad() {
           </div>`).join('')
         : '<p class="text-muted" style="padding:12px">No subfolders</p>'}
       </div>
-      <div class="btn-row" style="margin-top:14px">
+      <div class="btn-row" id="gdrive-actions" style="margin-top:14px">
         ${cur.id === 'sharedWithMe'
           ? '<span class="text-muted text-sm">Open a shared folder to select it</span>'
-          : `<button class="btn-primary" onclick="gdriveSelectCurrent()">Select &ldquo;${esc(cur.name)}&rdquo;</button>`}
+          : `<button class="btn-primary" onclick="gdriveSelectCurrent()">Select &ldquo;${esc(cur.name)}&rdquo;</button>
+             <button class="btn-secondary" onclick="gdriveNewFolder()">${ICONS.plus} New folder</button>`}
         <button class="btn-secondary" onclick="closeModal()">Cancel</button>
       </div>`;
   } catch (err) {
@@ -155,6 +156,40 @@ function gdriveEnter(id, rowEl) {
 function gdriveCrumb(i) {
   _gdrivePath = _gdrivePath.slice(0, i + 1);
   gdriveBrowserLoad();
+}
+
+// Swap the action row for an inline "name the new folder" form. The folder is
+// created inside the folder currently open in the picker.
+function gdriveNewFolder() {
+  const actions = document.getElementById('gdrive-actions');
+  if (!actions) return;
+  const cur = _gdrivePath[_gdrivePath.length - 1];
+  actions.innerHTML = `
+    <input type="text" id="gdrive-new-name" placeholder="New folder name" style="flex:1"
+      onkeydown="if(event.key==='Enter'){gdriveCreateFolder();return false}if(event.key==='Escape')gdriveBrowserLoad()">
+    <button class="btn-primary" onclick="gdriveCreateFolder()">Create in &ldquo;${esc(cur.name)}&rdquo;</button>
+    <button class="btn-secondary" onclick="gdriveBrowserLoad()">Cancel</button>`;
+  document.getElementById('gdrive-new-name').focus();
+}
+
+async function gdriveCreateFolder() {
+  const input = document.getElementById('gdrive-new-name');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  const cur = _gdrivePath[_gdrivePath.length - 1];
+  input.disabled = true;
+  try {
+    const { id } = await API.google.createFolder(cur.id, name);
+    toast('Folder created', 'success');
+    // Step into the newly created folder so it's ready to select.
+    _gdrivePath.push({ id, name });
+    gdriveBrowserLoad();
+  } catch (err) {
+    toast(err.message, 'error');
+    input.disabled = false;
+    input.focus();
+  }
 }
 
 function gdriveSelectCurrent() {
