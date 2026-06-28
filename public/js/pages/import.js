@@ -205,7 +205,7 @@ async function renderGdrivePanel() {
         <input type="text" id="gdrive-folder" style="flex:1" placeholder="Browse… or paste a folder URL/ID"
           value="${esc(st.folderId || st.importFolder || '')}">
         <button class="btn-secondary" onclick="gdriveBrowse()">Browse…</button>
-        <button class="btn-primary" id="gdrive-sync-btn" onclick="gdriveSync()">Sync</button>
+        <button class="btn-primary" id="gdrive-sync-btn" onclick="gdriveSync()">Import</button>
       </div>
       <div id="gdrive-folder-name" class="text-muted" style="font-size:11px;margin-top:4px"></div>
       <p class="text-muted" style="font-size:11px;margin-top:6px">
