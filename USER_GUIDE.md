@@ -168,9 +168,9 @@ passed · % failed”* label at its left edge (hover any segment for its count).
 
 A collapsible **Default Setup** panel sits at the top of the page. This is the
 standard test environment and technician-screen configuration that applies to
-every verification in the version unless a specific test states otherwise. It is
-printed as the opening page of the verification report, and is edited via **Edit
-version** (see below).
+every verification in the version unless a specific test states otherwise, and is
+edited via **Edit version** (see below). On the report's opening page it appears
+beneath a fixed introductory paragraph that is present in every report.
 
 From a version you can also:
 - **Add verifications** to the version (from the library).
