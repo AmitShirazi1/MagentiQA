@@ -60,17 +60,6 @@ async function renderVersionDetail(params = {}) {
         ${progressOverview(version.unitStats || {})}
       </div>`;
 
-    // The version's default setup — the baseline printed as the opening page of
-    // the verification report. Collapsed by default; edited via "Edit version".
-    const setupHtml = `
-      <div class="card flush mb-16">
-        <div class="card-header collapsible-header" onclick="toggleTestGroup(this, 'vd-setup')">
-          <span class="collapsible-arrow">${ICONS.chevR}</span>
-          <span class="card-title">Default Setup</span>
-        </div>
-        <div class="hidden" id="vd-setup" style="padding:16px;white-space:pre-wrap;line-height:1.55">${esc(version.defaultSetup || '')}</div>
-      </div>`;
-
     const testsByTag = Object.entries(byTag).sort(([a], [b]) => a.localeCompare(b)).map(([tag, tests], gi) => {
       const groupPassed = tests.filter(t => t.status === 'PASSED').length;
       return `
@@ -139,6 +128,11 @@ async function renderVersionDetail(params = {}) {
           </div>
           <h1 style="display:flex;align-items:center;gap:12px">${esc(version.name)} ${badge(version.status)}</h1>
           <p class="subtitle">${vTests.length} verification${vTests.length === 1 ? '' : 's'} in this version</p>
+          <div class="vd-setup-toggle" onclick="toggleTestGroup(this,'vd-setup')">
+            <span class="collapsible-arrow">${ICONS.chevR}</span>
+            <span>Default Setup</span>
+          </div>
+          <div class="vd-setup-body hidden" id="vd-setup">${esc(version.defaultSetup || '')}</div>
         </div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="openAddTestToVersionModal('${versionId}','${projectId}')">${ICONS.plus} Add Test</button>
@@ -150,7 +144,6 @@ async function renderVersionDetail(params = {}) {
         </div>
       </div>
       <div class="page-body">
-        ${setupHtml}
         ${statsHtml}
         ${vTests.length === 0
           ? emptyState('No tests in this version', 'Add tests from the library or import verification files.', {
