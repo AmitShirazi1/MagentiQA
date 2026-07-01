@@ -60,6 +60,17 @@ async function renderVersionDetail(params = {}) {
         ${progressOverview(version.unitStats || {})}
       </div>`;
 
+    // The version's default setup — the baseline printed as the opening page of
+    // the verification report. Collapsed by default; edited via "Edit version".
+    const setupHtml = `
+      <div class="card flush mb-16">
+        <div class="card-header collapsible-header" onclick="toggleTestGroup(this, 'vd-setup')">
+          <span class="collapsible-arrow">${ICONS.chevR}</span>
+          <span class="card-title">Default Setup</span>
+        </div>
+        <div class="hidden" id="vd-setup" style="padding:16px;white-space:pre-wrap;line-height:1.55">${esc(version.defaultSetup || '')}</div>
+      </div>`;
+
     const testsByTag = Object.entries(byTag).sort(([a], [b]) => a.localeCompare(b)).map(([tag, tests], gi) => {
       const groupPassed = tests.filter(t => t.status === 'PASSED').length;
       return `
@@ -139,6 +150,7 @@ async function renderVersionDetail(params = {}) {
         </div>
       </div>
       <div class="page-body">
+        ${setupHtml}
         ${statsHtml}
         ${vTests.length === 0
           ? emptyState('No tests in this version', 'Add tests from the library or import verification files.', {
@@ -318,6 +330,10 @@ async function openEditVersionModal(projectId, versionId) {
           `<option value="${s}" ${s === v.status ? 'selected' : ''}>${l}</option>`).join('')}
       </select>
     </div>
+    <div class="field-group">
+      <label for="vs-setup">Default Setup <span class="label-hint">shown on the opening page of the verification report; new versions inherit it from the previous version</span></label>
+      <textarea id="vs-setup" rows="12">${esc(v.defaultSetup || '')}</textarea>
+    </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn-primary" onclick="saveVersion('${projectId}','${versionId}')">Save Changes</button>
@@ -327,9 +343,10 @@ async function openEditVersionModal(projectId, versionId) {
 async function saveVersion(projectId, versionId) {
   const name = document.getElementById('vs-name').value.trim();
   const status = document.getElementById('vs-status').value;
+  const defaultSetup = document.getElementById('vs-setup').value;
   if (!name) { toast('Version name required', 'error'); return; }
   try {
-    await API.projects.updateVersion(projectId, versionId, { name, status });
+    await API.projects.updateVersion(projectId, versionId, { name, status, defaultSetup });
     closeModal();
     toast('Version updated', 'success');
     // Stay where the edit was launched from: the project's version list or the

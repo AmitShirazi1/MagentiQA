@@ -5,6 +5,7 @@ const { audit } = require('../lib/audit');
 const { requireAuth, requireRole } = require('../lib/auth');
 const { effectiveStatus, versionUnitStats } = require('../lib/rollup');
 const { deleteVersionCascade } = require('../lib/cascade');
+const { DEFAULT_SETUP_TEXT } = require('../lib/setups');
 
 /** Count version-tests by their effective (setup-rolled-up) status. */
 function statusCounts(vTests) {
@@ -103,12 +104,20 @@ router.post('/:projectId/versions', requireAuth, (req, res) => {
   if (!db.projects.findById(projectId)) return res.status(404).json({ error: 'Project not found' });
   if (db.versions.findOne({ projectId, name })) return res.status(409).json({ error: 'Version name taken' });
 
-  const version = db.versions.create({ projectId, name, status: status || 'DRAFT' });
-  audit(req.user.id, 'CREATE', 'versions', version.id, null, version, req);
+  // The new version inherits from the previous version of this project — its
+  // tests and its default setup. The first version of a project has no
+  // predecessor and falls back to the standard setup text.
+  const prevVersion = db.versions
+    .query({ filter: { projectId }, sortBy: 'createdAt', sortDir: 'asc' })
+    .pop();
 
-  // Inherit tests from previous version
-  const allVersions = db.versions.query({ filter: { projectId }, sortBy: 'createdAt', sortDir: 'asc' });
-  const prevVersion = allVersions.filter(v => v.id !== version.id).pop();
+  const version = db.versions.create({
+    projectId,
+    name,
+    status: status || 'DRAFT',
+    defaultSetup: prevVersion?.defaultSetup ?? DEFAULT_SETUP_TEXT,
+  });
+  audit(req.user.id, 'CREATE', 'versions', version.id, null, version, req);
 
   let inheritedCount = 0;
   if (prevVersion) {
@@ -136,7 +145,12 @@ router.get('/:projectId/versions/:versionId', requireAuth, (req, res) => {
   if (!version) return res.status(404).json({ error: 'Not found' });
   const vTests = db.versionTests.findAll({ versionId: version.id })
     .filter(vt => db.tests.findById(vt.testDefId));   // ignore links to deleted definitions
-  res.json({ ...version, ...statusCounts(vTests), unitStats: versionUnitStats(version.id) });
+  res.json({
+    ...version,
+    defaultSetup: version.defaultSetup ?? DEFAULT_SETUP_TEXT,   // pre-feature versions
+    ...statusCounts(vTests),
+    unitStats: versionUnitStats(version.id),
+  });
 });
 
 router.put('/:projectId/versions/:versionId', requireAuth, (req, res) => {

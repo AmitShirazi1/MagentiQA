@@ -44,7 +44,6 @@ async function seed() {
     version = db.versions.create({
       projectId: project.id,
       name: 'v1.0.0',
-      description: 'Initial verification release.',
       status: 'IN_PROGRESS',
       createdBy: user.id,
     });

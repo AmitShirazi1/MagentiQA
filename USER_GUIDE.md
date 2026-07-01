@@ -150,12 +150,13 @@ change its **name** (also description and Git repo), and **Save Changes**.
 
 **Open a project** to see its versions. **New Version** creates a release; the new
 version copies the previous version's verification list (all reset to *Not
-Started*), so you don't re-link everything each release.
+Started*) and its **Default Setup** text, so you don't re-link everything or
+re-type the standard setup each release.
 
-Each version card has an **edit** (pencil) button to rename the version and change
-its status, and — for ADMINs — a **delete** button that removes the version and all
-of its verification runs (this cascade can't be undone). You can also rename/set
-status from the version page via **Edit version**.
+Each version card has an **edit** (pencil) button to rename the version, change
+its status and edit its default setup, and — for ADMINs — a **delete** button that
+removes the version and all of its verification runs (this cascade can't be
+undone). The same edits are available from the version page via **Edit version**.
 
 The version page opens with a row of status cards — **Total, Passed, Partial,
 Failed, In Progress, Blocked, Not Started** — each marked by a coloured left
@@ -164,6 +165,12 @@ are also **filters**: click one to show only verifications in that status, and
 click it again (or **Total**) to clear. Below them, a thin **Execution Progress**
 bar stacks the statuses into one segmented chart, with a small *“% complete · %
 passed · % failed”* label at its left edge (hover any segment for its count).
+
+A collapsible **Default Setup** panel sits at the top of the page. This is the
+standard test environment and technician-screen configuration that applies to
+every verification in the version unless a specific test states otherwise. It is
+printed as the opening page of the verification report, and is edited via **Edit
+version** (see below).
 
 From a version you can also:
 - **Add verifications** to the version (from the library).
@@ -181,9 +188,9 @@ From a version you can also:
 - **Unlink** a verification from the version (the unlink icon on its row): it's
   removed from this version, along with its runs here, but stays in the library and
   in other versions.
-- **Edit version** — rename the version and set its workflow status. (Renaming a
-  version also renames its PDF report file, which is named after the project and
-  version.)
+- **Edit version** — rename the version, set its workflow status, and edit the
+  **Default Setup** text. (Renaming a version also renames its PDF report file,
+  which is named after the project and version.)
 
 Deleting a project (ADMIN only) cascades to its versions and their executions —
 this is logged in the audit trail. Make a [backup](#16-backups--restore) first if
@@ -389,8 +396,9 @@ A version has **three distinct exports** — the buttons appear both on the vers
 page and on each version card in a project:
 
 - **(A) Download PDF** — the audit-ready PDF for the version: a cover carrying
-  the Magentiq Eye logo, summary statistics, a results overview, and a detail
-  page per verification plus the version approval. Each step's **Pass/Fail** is
+  the Magentiq Eye logo, summary statistics, a results overview and the version
+  approval, followed by the version's **Verification Setup** page (its Default
+  Setup text) and then a detail page per verification. Each step's **Pass/Fail** is
   shown per verification; for a **setup-tracked** verification a step is rolled up
   across all its setups — **Pass** if it passed in every setup, **Fail** if it
   failed in every setup, and **Partially Passed** if it passed in some and failed

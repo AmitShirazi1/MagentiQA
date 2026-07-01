@@ -45,7 +45,7 @@ AuditLog  (immutable trail of every CREATE/UPDATE/DELETE/RESET/EXECUTE/SIGN/IMPO
 | Entity | Meaning |
 |--------|---------|
 | **Project** | A product under verification (e.g. "Main Product"). Has a type (`US_SOFTWARE`, `EU_SOFTWARE`, `IMAGE_VERSION`). |
-| **Version** | A release of a project (e.g. `v1.0.0`). New versions automatically inherit the test list of the previous version, reset to `NOT_STARTED`. |
+| **Version** | A release of a project (e.g. `v1.0.0`). New versions automatically inherit the previous version's test list (reset to `NOT_STARTED`) and its `defaultSetup` — a free-text description of the standard test environment/configuration, editable per version and printed as the opening page of the verification report. The first version of a project falls back to a standard setup template. |
 | **TestDefinition** | A reusable verification ("Verifications Library"): title, auto-assigned ID (`VT-0001`…), tags, description, preconditions, configuration, and ordered steps. Has a `type`: **`STANDARD`** (the default) or **`SETUP_TRACKED`** (additionally owns a dynamic setups table — see Setup). |
 | **Setup** | One condition/configuration a **setup-tracked** verification must be performed under (e.g. a hardware wiring combination). Carries a serial id (`TEST-HW-001`) and its descriptive columns (Setup Details + any extra columns) as `data`. Its `status` (the pass/fail verdict) and `testerName` (who signed it) are recorded outcomes, **not** part of `data` — set when a setup is run & signed (or seeded from the imported spreadsheet) and re-created as the `Status` / `Tester Name` columns on export. Coverage ("7/10 setups passed") is shown per definition (baseline) and per version (from executions tagged with a `setupId`). |
 | **VersionTest** | Links a test definition to a version and carries the per-version status (`NOT_STARTED`, `IN_PROGRESS`, `PASSED`, `FAILED`, `BLOCKED`) and workflow state (`DRAFT`, `IN_REVIEW`, `APPROVED`). |
@@ -71,9 +71,10 @@ lib/
   cleanup.js            Startup + daily sweeps: orphan evidence files + dangling version-test links
   pdf.js                Verification report generator (Puppeteer → PDF, HTML
                         fallback) — cover with the embedded Magentiq Eye logo,
-                        summary stats, results overview, per-verification detail
-                        incl. setups
-  setups.js             Shared replace-on-save persistence for a tracked test's setups
+                        summary stats, results overview, the version's default
+                        setup page, then per-verification detail incl. setups
+  setups.js             Shared replace-on-save persistence for a tracked test's
+                        setups; also defines the standard version setup template
   backup.js             Full snapshot (consistent DB + storage + all code) → backups/*.zip
   google.js             Drive/Docs client (OAuth, list, download, folder/file upsert)
   verification-doc.js          Clean .docx template generator (inverse of parsers/docx.js)
