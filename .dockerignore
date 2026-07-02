@@ -1,0 +1,29 @@
+# Dependencies — recompiled inside the image for the container platform
+node_modules/
+
+# Runtime data & secrets — provided at run time via bind-mounts, never baked in
+data/
+storage/
+backups/
+.env
+.env.*
+!.env.example
+client_secret_*.json
+*.pem
+*.key
+
+# Git / tooling / editor / OS
+.git/
+.gitignore
+.claude/
+*.log
+npm-debug.log*
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+docker-compose.yml

@@ -29,6 +29,41 @@ Open **http://localhost:3000** and log in with:
 > feature-by-feature walkthrough written for first-time users. This README is the
 > technical/operator reference.
 
+## Docker deployment (share it on your network)
+
+Run MagentiQA in a container so anyone on the same LAN can use it while the host
+PC is on — no Node install needed on the client machines. The image bundles Node 20
+and Chromium (for PDF reports); the database, evidence/PDFs, backups and `.env`
+stay on the host via bind-mounts, so nothing is lost across rebuilds.
+
+```bash
+# 1. First run only, if there's no database yet: create the demo user + sample data
+docker compose run --rm magentiqa node scripts/seed.js
+
+# 2. Build and start in the background
+docker compose up -d --build
+
+# 3. Follow logs / stop
+docker compose logs -f
+docker compose down
+```
+
+Then open **http://localhost:3000** on the host, or from any other PC on the
+network **http://&lt;host-LAN-IP&gt;:3000** (find the IP with `hostname -I`). Log in
+with `sysadmin` / `admin123`.
+
+Notes:
+- **Port already in use?** The container publishes host port `3000`. If you also
+  run `npm start` on the host, stop that first (the container replaces it) or
+  remap the port in `docker-compose.yml` (e.g. `"3001:3000"`).
+- **Firewall.** Other machines can connect only if the host firewall allows
+  inbound `3000` (e.g. `sudo ufw allow 3000/tcp`).
+- **Secrets.** Keep `SIGNATURE_SECRET` in `.env` stable — changing it invalidates
+  every existing electronic signature. `.env` is mounted read-only.
+- **After code changes**, re-run `docker compose up -d --build` to rebuild.
+- **Keep it private to the host** instead of the LAN by changing the port mapping
+  to `"127.0.0.1:3000:3000"`.
+
 ## Core Concepts & Data Model
 
 ```
@@ -115,6 +150,9 @@ storage/
   pdfs/                 Generated verification reports
   imports/              Raw uploaded .docx/.md files
 backups/                Backup archives (magentiqa-backup_<timestamp>.zip)
+Dockerfile              Container image (Node 20 + Chromium; builds better-sqlite3)
+docker-compose.yml      Deployment: port publish + data/storage/backups/.env bind-mounts
+.dockerignore           Excludes node_modules, runtime data and secrets from the image
 ```
 
 ## Storage

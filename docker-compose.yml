@@ -1,0 +1,34 @@
+# MagentiQA — self-hosted deployment.
+#
+#   docker compose up -d --build      start (build on first run / after code changes)
+#   docker compose logs -f            follow logs
+#   docker compose down               stop
+#
+# Once running, MagentiQA is reachable from any PC on the same network at
+#   http://<this-PC's-LAN-IP>:3000   (e.g. http://192.168.1.20:3000)
+# for as long as this PC is on and the container is up.
+
+services:
+  magentiqa:
+    build: .
+    image: magentiqa:latest
+    container_name: magentiqa
+    restart: unless-stopped
+
+    # Run as host uid:gid 1000 so files written into the bind-mounts below stay
+    # owned by your user (not root).
+    user: "1000:1000"
+
+    # Publish on all interfaces so other machines on the LAN can connect. To keep
+    # it private to this PC instead, change to "127.0.0.1:3000:3000".
+    ports:
+      - "3000:3000"
+
+    # Persist all state on the host — the database, evidence/PDFs/imports, and
+    # backups survive container restarts and rebuilds. .env (secrets) is mounted
+    # read-only; keep SIGNATURE_SECRET stable or existing signatures won't verify.
+    volumes:
+      - ./data:/app/data
+      - ./storage:/app/storage
+      - ./backups:/app/backups
+      - ./.env:/app/.env:ro
