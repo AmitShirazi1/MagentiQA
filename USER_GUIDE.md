@@ -180,6 +180,13 @@ that setup. Filtering by a status auto-expands the setup-tracked verifications
 that contain a matching setup and shows just those setups, so clicking **Blocked**
 takes you right to the blocked ones.
 
+The last column, **Execution time**, is a diagnostic readout of how long *this
+verification took in this version* (the actual time, not an average across
+versions): blank before it's started, the time the execution screen has been open
+so far while a run is in progress, and the total time up to signing once it's
+complete. For setup-tracked verifications this is filled on the individual **setup
+sub-rows** only — the collapsed parent row leaves it blank.
+
 A setup-tracked verification's own badge **summarises its setups**: **Blocked** if
 any setup has a blocked step, otherwise **In Progress** if any setup is under way
 or only some are done, otherwise the rolled-up verdict (**Passed** when every setup
