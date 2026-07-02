@@ -641,18 +641,25 @@ tbody td { padding: 11px 16px; vertical-align: middle; color: var(--text-primary
 
 /* Version-detail tables: one table per tag group, so a fixed layout with a shared
    colgroup is what keeps every group's columns aligned regardless of its content.
-   The Title column takes the leftover width and truncates with an ellipsis (full
-   text on hover via the cell's title attribute). */
+   Every column has a bounded width so the whole table fits a standard screen —
+   the Title (and other tight columns) wrap onto multiple lines instead of pushing
+   the trailing Execution-time column off-screen. */
 .vd-table { table-layout: fixed; }
-.vd-col-id      { width: 116px; }
-.vd-col-actions { width: 224px; }
-.vd-col-tags    { width: 220px; }
-.vd-col-status  { width: 150px; }
-.vd-col-lastrun { width: 132px; }
-.vd-col-exectime { width: 116px; }   /* debug: actual per-version execution time */
-/* .vd-col-title has no width — it absorbs the remaining space, identically in
-   every group table since they share the same container width. */
-.vd-table td.vd-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-col-id      { width: 92px; }
+.vd-col-title   { width: 230px; }
+.vd-col-actions { width: 172px; }
+.vd-col-tags    { width: 132px; }
+.vd-col-status  { width: 124px; }
+.vd-col-lastrun { width: 100px; }
+.vd-col-exectime { width: 96px; }   /* debug: actual per-version execution time */
+/* Title is bounded (not a leftover-absorbing column) so the trailing columns
+   always stay on-screen. Long titles wrap onto multiple lines instead of
+   stretching the table; the cell's title attribute still gives the full text on
+   hover. */
+.vd-table td.vd-title { white-space: normal; overflow-wrap: anywhere; font-weight: 550; line-height: 1.35; }
+/* Narrow columns wrap rather than widen the table. */
+.vd-table td.vd-title + td + td,           /* tags cell */
+.vd-table .t-meta { white-space: normal; overflow-wrap: anywhere; }
 
 /* ── Hierarchical setup rows (setup-tracked verifications) ─────────────────── */
 .vd-actions { display: inline-flex; gap: 6px; flex-wrap: nowrap; align-items: center; }
