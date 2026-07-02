@@ -26,6 +26,17 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 200 * 1024 * 1024 } }); // 200MB
 
+// Fold one run's on-screen duration into a rolling average. `row` is a `tests`
+// definition (standard) or a `setups` row (setup-tracked); returns the fields to
+// persist so the mean is the simple average of every sample so far.
+function foldAvg(row, durationMs) {
+  const n = row.execTimeSamples || 0;
+  return {
+    execTimeSamples: n + 1,
+    avgExecutionMs: ((row.avgExecutionMs || 0) * n + durationMs) / (n + 1),
+  };
+}
+
 // ── Executions ────────────────────────────────────────────────────────────────
 
 // GET /api/executions?versionTestId=xxx
@@ -68,7 +79,7 @@ router.get('/drafts', requireAuth, (req, res) => {
 
 // PUT /api/executions/draft — upsert the shared draft for (versionTest, setup)
 router.put('/draft', requireAuth, (req, res) => {
-  const { versionTestId, setupId, stepResults, summary, deviations } = req.body;
+  const { versionTestId, setupId, stepResults, summary, deviations, accumulatedMs } = req.body;
   if (!versionTestId) return res.status(400).json({ error: 'versionTestId required' });
 
   // One shared draft per (versionTest, setup). Collapse any legacy per-user
@@ -84,6 +95,9 @@ router.put('/draft', requireAuth, (req, res) => {
     stepResults: Array.isArray(stepResults) ? stepResults : [],
     summary: summary || '',
     deviations: deviations || '',
+    // On-screen time banked so far for this in-progress run (this setup only),
+    // used to compute the verification's average execution time once signed.
+    accumulatedMs: Math.max(0, Number(accumulatedMs) || 0),
   };
   const draft = existing
     ? db.executionDrafts.update(existing.id, payload)
@@ -109,13 +123,17 @@ router.post('/', requireAuth, (req, res) => {
   const {
     versionTestId, result, swVersion, buildNumber, environment,
     configurations, summary, deviations, stepResults, isAutomated,
-    ciJobUrl, ciJobId, setupId,
+    ciJobUrl, ciJobId, setupId, durationMs,
   } = req.body;
 
   if (!versionTestId || !result) return res.status(400).json({ error: 'versionTestId and result required' });
 
   const vt = db.versionTests.findById(versionTestId);
   if (!vt) return res.status(404).json({ error: 'VersionTest not found' });
+
+  // Accumulated on-screen time this run took (banked across leave/continue, this
+  // setup only) — recorded on the run and folded into the unit's rolling average.
+  const dur = Math.max(0, Number(durationMs) || 0);
 
   const ex = db.executions.create({
     versionTestId,
@@ -131,6 +149,7 @@ router.post('/', requireAuth, (req, res) => {
     ciJobUrl: ciJobUrl || null,
     ciJobId: ciJobId || null,
     setupId: setupId || null,   // which setup (condition) this run covered, if any
+    durationMs: dur,
     executedAt: new Date().toISOString(),
   });
 
@@ -193,6 +212,20 @@ router.post('/', requireAuth, (req, res) => {
 
   // Auto-sign as EXECUTED (the per-verification "Verified By" signature)
   const sig = sign(req.user.id, ex.id, 'EXECUTED', req);
+
+  // Fold this signed run's on-screen duration into the rolling average execution
+  // time of its unit: per setup for setup-tracked verifications (each setup keeps
+  // its own average), else on the shared test definition. Inherited across versions
+  // for free since both rows hang off the test def. (CI runs send no duration.)
+  if (dur > 0) {
+    if (test && (test.type || 'STANDARD') === 'SETUP_TRACKED' && setupId) {
+      const setup = db.setups.findOne({ testId: vt.testDefId, setupId });
+      if (setup) db.setups.update(setup.id, foldAvg(setup, dur));
+    } else {
+      const def = db.tests.findById(vt.testDefId);
+      if (def) db.tests.update(def.id, foldAvg(def, dur));
+    }
+  }
 
   // This run is now a permanent record — drop the shared in-progress draft(s)
   // for this (versionTest, setup) so re-opening starts clean for everyone. All

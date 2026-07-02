@@ -138,6 +138,14 @@ function navigate(page, params = {}, push = true) {
   if (!PAGES.has(page)) page = 'dashboard';
   closePopovers();
 
+  // Leaving the execution screen (back link, popstate, any nav all route here):
+  // bank the open on-screen segment and persist the draft so accrued time isn't
+  // lost. Re-navigating within test-execute (e.g. setup deep-links) is not a leave.
+  if (currentPage === 'test-execute' && page !== 'test-execute') {
+    if (typeof flushExecTiming === 'function') flushExecTiming();
+    if (typeof saveDraftNow === 'function') saveDraftNow();
+  }
+
   // Hide all pages
   document.querySelectorAll('.page').forEach(p => {
     p.classList.remove('active');

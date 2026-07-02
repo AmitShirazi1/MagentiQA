@@ -1160,10 +1160,29 @@ function _setupKey(id) { return id || '__none__'; }
 function curState()    { return _exec.bySetup[_setupKey(_exec.currentSetupId)]; }
 function _stepStates() { return Object.values(curState().stepState); }
 
-// Persist the current setup's draft when the page is hidden (tab close / switch).
-// SPA navigation away is covered by the immediate save on each recorded result.
+// ── Execution timing ──────────────────────────────────────────────────────────
+// We accrue the wall-clock time the execution screen is open for a verification,
+// banked PER SELECTED SETUP, to later compute its average execution time. A "live
+// segment" runs from _exec.segmentStart; flushExecTiming() folds it into the
+// current setup's accumulatedMs and re-baselines, so it can be called repeatedly
+// (autosave, setup switch, leave, sign) without double-counting. Only the time a
+// setup is the selected one counts toward that setup; switching setups (or leaving)
+// closes the segment. Note: drafts are shared per (versionTest, setup) — if two
+// users have the same run open at once, each banks against its own baseline and the
+// last draft write wins, so time may be under/over-counted in that rare case.
+function flushExecTiming() {
+  if (!_exec || _exec.segmentStart == null) return;
+  const now = Date.now();
+  const st = curState();
+  st.accumulatedMs = (st.accumulatedMs || 0) + (now - _exec.segmentStart);
+  _exec.segmentStart = now;
+}
+
+// Persist the current setup's draft when the page is hidden (tab close / switch),
+// banking the open segment first. SPA navigation away is covered by navigate()'s
+// leave hook (app.js) and the immediate save on each recorded result.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') saveDraftNow();
+  if (document.visibilityState === 'hidden') { flushExecTiming(); saveDraftNow(); }
 });
 
 async function renderTestExecute(params = {}) {
@@ -1233,8 +1252,12 @@ async function renderTestExecute(params = {}) {
         generalEvidence: [],
         summary: d?.summary || '',
         deviations: d?.deviations || '',
+        accumulatedMs: d?.accumulatedMs || 0,   // time banked by earlier sessions
       };
     }
+
+    // Start timing the current setup's on-screen segment (open / continue / re-execute).
+    _exec.segmentStart = Date.now();
 
     const tracked = setups.length > 0;
     el.innerHTML = `
@@ -1273,6 +1296,7 @@ async function renderTestExecute(params = {}) {
 let _draftTimer = null;
 
 function buildDraftPayload() {
+  flushExecTiming();   // bank on-screen time up to now before persisting
   const st = curState().stepState;
   const stepResults = _exec.steps
     .map(s => ({ stepId: s.id, result: st[s.id].result, actual: st[s.id].actual || '' }))
@@ -1283,17 +1307,20 @@ function buildDraftPayload() {
     stepResults,
     summary: curState().summary || '',
     deviations: curState().deviations || '',
+    accumulatedMs: curState().accumulatedMs || 0,
   };
 }
 
 function scheduleDraftSave() { clearTimeout(_draftTimer); _draftTimer = setTimeout(saveDraftNow, 500); }
 
-// Best-effort persistence of the current setup's in-progress marks. An empty
-// payload (no step results, summary or deviations — e.g. from just opening a
-// setup) is not persisted, so merely visiting a setup never creates a phantom
-// draft that would misread as "in progress" in the version view or the overview.
+// Best-effort persistence of the current setup's in-progress marks. A payload with
+// no step results, summary, deviations AND no banked time (e.g. from just opening a
+// setup and immediately leaving) is not persisted, so merely visiting a setup never
+// creates a phantom draft that would misread as "in progress" in the version view.
+// Once any on-screen time has accrued, the draft is saved so that time survives.
 function draftIsEmpty(p) {
-  return (!p.stepResults || p.stepResults.length === 0) && !p.summary && !p.deviations;
+  return (!p.stepResults || p.stepResults.length === 0) && !p.summary && !p.deviations
+    && !(p.accumulatedMs > 0);
 }
 async function saveDraftNow() {
   clearTimeout(_draftTimer);
@@ -1431,8 +1458,9 @@ function renderBriefingGrid() {
 // chosen setup's own results / notes / evidence into the cards. `newId` is the
 // setupId to switch to (null / '' selects the "not setup-specific" run).
 async function onSetupChange(newId) {
-  await saveDraftNow();
+  await saveDraftNow();          // banks the open segment to the setup we're leaving
   _exec.currentSetupId = newId || null;
+  _exec.segmentStart = Date.now(); // the newly selected setup starts accruing from now
 
   const cont = document.getElementById('exec-steps');
   if (cont) cont.innerHTML = _exec.steps.map((s, i) => stepCardHtml(s, i)).join('');
@@ -2028,17 +2056,26 @@ async function submitExecution() {
   const btn = document.getElementById('sign-submit-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
 
+  flushExecTiming();   // bank the final open segment before recording the duration
+  const durationMs = curState().accumulatedMs || 0;
+
   try {
     const exec = await API.executions.create({
       versionTestId: _exec.ids.versionTestId,
-      result, swVersion, environment: '', summary, deviations, stepResults, setupId,
+      result, swVersion, environment: '', summary, deviations, stepResults, setupId, durationMs,
     });
 
     await uploadAllEvidence(exec.id);
 
+    // The run is now signed and its draft deleted server-side. Tear down the run
+    // state before navigating so navigate()'s leave hook doesn't re-save (and thus
+    // resurrect) a draft for this completed run.
+    const { projectId, versionId } = _exec.ids;
+    _exec = null;
+
     closeModal();
     toast(`Execution recorded as ${badgeLabel(result)}`, 'success');
-    navigate('version-detail', { projectId: _exec.ids.projectId, versionId: _exec.ids.versionId });
+    navigate('version-detail', { projectId, versionId });
   } catch (err) {
     if (btn) { btn.disabled = false; btn.innerHTML = `${ICONS.sign} Sign &amp; Submit`; }
     toast(err.message, 'error');
