@@ -1359,6 +1359,22 @@ input.invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--fail) 18%, 
 .login-tabs { margin-bottom: 22px; }
 .hint-text { text-align: center; font-size: 11.5px; color: var(--text-muted); margin-top: 14px; line-height: 1.5; }
 
+/* ── Step editor rows (drag-to-reorder) ──────────────────────────────────────── */
+.step-edit-row {
+  display: grid;
+  grid-template-columns: 22px 32px 1fr 1fr auto;
+  gap: 8px; margin-bottom: 8px; align-items: start;
+}
+.step-edit-row.dragging { opacity: 0.45; }
+.step-edit-num { padding-top: 9px; color: var(--text-muted); }
+.step-grip {
+  display: flex; align-items: center; justify-content: center;
+  padding-top: 9px; color: var(--text-muted); cursor: grab;
+  touch-action: none; user-select: none;
+}
+.step-grip:hover { color: var(--text-secondary); }
+.step-grip:active { cursor: grabbing; }
+
 /* ── Steps Table ───────────────────────────────────────────────────────────── */
 .steps-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .steps-table th {

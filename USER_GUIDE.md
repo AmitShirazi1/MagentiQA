@@ -240,7 +240,9 @@ grouped and searchable. Each definition has:
 
 - An auto ID (`VT-0001`, `VT-0002`, …) that never changes.
 - Title, tags, description, preconditions, configuration, files, notes.
-- An ordered list of **steps** (action + expected result).
+- An ordered list of **steps** (action + expected result). When creating or
+  editing a verification, drag a step by its grip handle (⠿, on the left) to
+  reorder it; the step numbers renumber automatically.
 - A **type**: *Standard* or *Setup-tracked*.
 
 Click a verification to **View** its full content, or edit it. You can create

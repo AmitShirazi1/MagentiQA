@@ -805,26 +805,63 @@ function toggleNewTestType() {
   if (tracked) renderSetupEditor('nt-setup-editor');
 }
 
+// Markup for one editable step row. Rows are drag-reorderable via the grip
+// handle; `collectSteps` reads DOM order, so reordering the DOM is all that's
+// needed to persist the new order. Shared by the new- and edit-verification forms.
+function stepRowHTML(containerId, action = '', expected = '') {
+  return `
+    <div class="step-edit-row"
+         ondragover="stepDragOver(event, this)"
+         ondrop="stepDrop(event, '${containerId}')">
+      <span class="step-grip" draggable="true" title="Drag to reorder" aria-label="Drag to reorder"
+            ondragstart="stepDragStart(event, this)" ondragend="stepDragEnd('${containerId}')">${ICONS.grip}</span>
+      <span class="mono step-edit-num"></span>
+      <input type="text" placeholder="Action / step description" class="step-action" value="${esc(action)}">
+      <input type="text" placeholder="Expected result" class="step-expected" value="${esc(expected)}">
+      <button class="icon-btn" aria-label="Remove step" onclick="this.closest('.step-edit-row').remove();renumberSteps('${containerId}')">${ICONS.trash}</button>
+    </div>`;
+}
+
 function addStepRow(containerId) {
   const container = document.getElementById(containerId);
-  const idx = container.children.length;
-  const row = document.createElement('div');
-  row.style.cssText = 'display:grid;grid-template-columns:32px 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:start';
-  row.innerHTML = `
-    <span class="mono" style="padding-top:9px;color:var(--text-muted)">${idx + 1}.</span>
-    <input type="text" placeholder="Action / step description" class="step-action">
-    <input type="text" placeholder="Expected result" class="step-expected">
-    <button class="icon-btn" aria-label="Remove step" onclick="this.parentElement.remove();renumberSteps('${containerId}')">${ICONS.trash}</button>`;
-  container.appendChild(row);
+  container.insertAdjacentHTML('beforeend', stepRowHTML(containerId));
+  const row = container.lastElementChild;
+  renumberSteps(containerId);
   row.querySelector('.step-action').focus();
 }
 
 function renumberSteps(containerId) {
   const container = document.getElementById(containerId);
   [...container.children].forEach((row, i) => {
-    const numEl = row.querySelector('.mono');
+    const numEl = row.querySelector('.step-edit-num');
     if (numEl) numEl.textContent = `${i + 1}.`;
   });
+}
+
+// ── Step drag-to-reorder ──────────────────────────────────────────────────────
+let _draggedStepRow = null;
+
+function stepDragStart(e, grip) {
+  _draggedStepRow = grip.closest('.step-edit-row');
+  _draggedStepRow.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function stepDragOver(e, row) {
+  if (!_draggedStepRow || row === _draggedStepRow) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const rect = row.getBoundingClientRect();
+  const after = (e.clientY - rect.top) > rect.height / 2;
+  row.parentElement.insertBefore(_draggedStepRow, after ? row.nextSibling : row);
+}
+
+function stepDrop(e) { e.preventDefault(); }
+
+function stepDragEnd(containerId) {
+  if (_draggedStepRow) _draggedStepRow.classList.remove('dragging');
+  _draggedStepRow = null;
+  renumberSteps(containerId);
 }
 
 function collectSteps(containerId) {
@@ -1075,13 +1112,7 @@ async function openEditTestModal(testId) {
     <div class="divider"></div>
     <h4 class="h-card" style="margin-bottom:10px">Steps</h4>
     <div id="et-steps-list">
-      ${(test.steps || []).map((s, i) => `
-        <div style="display:grid;grid-template-columns:32px 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:start">
-          <span class="mono" style="padding-top:9px;color:var(--text-muted)">${i + 1}.</span>
-          <input type="text" class="step-action" value="${esc(s.action)}" placeholder="Action">
-          <input type="text" class="step-expected" value="${esc(s.expectedResult || '')}" placeholder="Expected">
-          <button class="icon-btn" aria-label="Remove step" onclick="this.parentElement.remove();renumberSteps('et-steps-list')">${ICONS.trash}</button>
-        </div>`).join('')}
+      ${(test.steps || []).map(s => stepRowHTML('et-steps-list', s.action, s.expectedResult || '')).join('')}
     </div>
     <button class="btn-ghost" onclick="addStepRow('et-steps-list')">${ICONS.plus} Add Step</button>
 
@@ -1095,6 +1126,7 @@ async function openEditTestModal(testId) {
       <button class="btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn-primary" onclick="saveTest('${testId}', ${isTracked})">Save Changes</button>
     </div>`, { onOpen: () => {
+      renumberSteps('et-steps-list');
       if (isTracked) { initSetupModel(test.setupColumns, test.setups); renderSetupEditor('et-setup-editor'); }
     } });
 }
