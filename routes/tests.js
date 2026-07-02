@@ -247,13 +247,32 @@ router.get('/version/:versionId', requireAuth, (req, res) => {
     // unit; setup-tracked tests yield one per setup (draft-aware status + who ran
     // it). The unit statuses are what the version-view stats/KPIs count.
     const setupById = new Map((decorated?.setups || []).map(s => [s.setupId, s]));
-    const units = versionTestUnits(vt).map(u => ({
-      setupId: u.setupId,
-      status: u.status,
-      testerName: u.execution ? (db.users.findById(u.execution.executorId)?.name || null) : null,
-      lastExecutedAt: u.execution?.executedAt || null,
-      setupData: u.setupId ? (setupById.get(u.setupId)?.data || null) : null,
-    }));
+    // In-progress (unsigned) drafts for this version-test, indexed by setup, used
+    // for the debug "Execution time" column below.
+    const draftBySetup = new Map();
+    for (const d of db.executionDrafts.findAll({ versionTestId: vt.id })) {
+      draftBySetup.set(d.setupId || null, d);
+    }
+    const units = versionTestUnits(vt).map(u => {
+      // Debug column: the ACTUAL on-screen time for this unit in THIS version.
+      // While a run is in progress (screen opened, not yet signed) show the draft's
+      // banked time; once signed show the run's duration; otherwise none. Standard
+      // tests carry their signed run in `lastExec` (their unit has no execution);
+      // each setup unit uses its own latest signed run.
+      const draft = draftBySetup.get(u.setupId || null);
+      const signed = u.setupId ? u.execution : lastExec;
+      let execMs = null;
+      if (draft && (draft.accumulatedMs || 0) > 0) execMs = draft.accumulatedMs;
+      else if (signed && signed.durationMs != null) execMs = signed.durationMs;
+      return {
+        setupId: u.setupId,
+        status: u.status,
+        testerName: u.execution ? (db.users.findById(u.execution.executorId)?.name || null) : null,
+        lastExecutedAt: u.execution?.executedAt || null,
+        setupData: u.setupId ? (setupById.get(u.setupId)?.data || null) : null,
+        execMs,
+      };
+    });
 
     return {
       ...vt,

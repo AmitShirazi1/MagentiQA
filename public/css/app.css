@@ -649,6 +649,7 @@ tbody td { padding: 11px 16px; vertical-align: middle; color: var(--text-primary
 .vd-col-tags    { width: 220px; }
 .vd-col-status  { width: 150px; }
 .vd-col-lastrun { width: 132px; }
+.vd-col-exectime { width: 116px; }   /* debug: actual per-version execution time */
 /* .vd-col-title has no width — it absorbs the remaining space, identically in
    every group table since they share the same container width. */
 .vd-table td.vd-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

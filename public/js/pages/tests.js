@@ -34,6 +34,18 @@ function vtIsTracked(vt) {
   return vt.test?.type === 'SETUP_TRACKED' && Array.isArray(vt.units) && vt.units.length > 0;
 }
 function cssEsc(s) { return (window.CSS && CSS.escape) ? CSS.escape(String(s)) : String(s); }
+// Debug "Execution time" column: format a duration in ms as a compact, readable
+// string (empty when there's no time — execution not started). Not an average —
+// the actual time this unit took in this version.
+function fmtExecTime(ms) {
+  if (ms == null) return '<span class="text-muted">—</span>';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60), rs = s % 60;
+  if (m < 60) return `${m}m ${String(rs).padStart(2, '0')}s`;
+  const h = Math.floor(m / 60), rm = m % 60;
+  return `${h}h ${String(rm).padStart(2, '0')}m`;
+}
 function setupDetailFrom(data) {
   if (!data || typeof data !== 'object') return '';
   // Prefer the descriptive "Setup Details" column; the id column is already shown.
@@ -74,6 +86,7 @@ function vdRowsFor(vt, versionId, projectId) {
         <td>${tags}</td>
         <td data-sort="${unitKey(st)}">${badge(st)}</td>
         <td class="t-meta" data-sort="${vt.lastExecutedAt || ''}">${relTime(vt.lastExecutedAt)}</td>
+        <td class="t-meta tabular" data-sort="${units[0].execMs ?? -1}">${fmtExecTime(units[0].execMs)}</td>
       </tr>`;
   }
 
@@ -90,6 +103,7 @@ function vdRowsFor(vt, versionId, projectId) {
         <td>${tags}</td>
         <td data-sort="${esc(vt.status || '')}">${statusBadgeWithCount(vt)}</td>
         <td class="t-meta" data-sort="${vt.lastExecutedAt || ''}">${relTime(vt.lastExecutedAt)}</td>
+        <td></td>
       </tr>`;
   const kids = units.map(u => {
     const detail = setupDetailFrom(u.setupData);
@@ -101,6 +115,7 @@ function vdRowsFor(vt, versionId, projectId) {
         <td>${u.testerName ? `<span class="t-meta">${esc(u.testerName)}</span>` : ''}</td>
         <td data-sort="${unitKey(u.status)}">${badge(u.status)}</td>
         <td class="t-meta" data-sort="${u.lastExecutedAt || ''}">${relTime(u.lastExecutedAt)}</td>
+        <td class="t-meta tabular" data-sort="${u.execMs ?? -1}">${fmtExecTime(u.execMs)}</td>
       </tr>`;
   }).join('');
   return parent + kids;
@@ -170,6 +185,7 @@ async function renderVersionDetail(params = {}) {
               <col class="vd-col-tags">
               <col class="vd-col-status">
               <col class="vd-col-lastrun">
+              <col class="vd-col-exectime">
             </colgroup>
             <thead><tr>
               ${sortableTH('ID')}
@@ -178,6 +194,7 @@ async function renderVersionDetail(params = {}) {
               <th>Tags</th>
               ${sortableTH('Status')}
               ${sortableTH('Last Run')}
+              ${sortableTH('Execution time')}
             </tr></thead>
             <tbody>
               ${tests.map(vt => vdRowsFor(vt, versionId, projectId)).join('')}
