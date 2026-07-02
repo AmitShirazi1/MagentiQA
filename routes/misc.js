@@ -419,6 +419,16 @@ router.get('/users', requireAuth, (req, res) => {
   res.json(users);
 });
 
+// Build the invite link for a token. When PUBLIC_URL is set (e.g. the host's LAN
+// address, so invitees on other machines can reach this server) the link is
+// absolute; otherwise it's a site-relative path the browser resolves against its
+// own origin — which is only correct when the admin browses the same address the
+// invitee will use.
+function inviteUrl(token) {
+  const base = (process.env.PUBLIC_URL || '').trim().replace(/\/+$/, '');
+  return `${base}/?invite=${token}`;
+}
+
 // Create an invite link for a new account. The invitee sets their own password.
 router.post('/users/invite', requireAuth, requireRole('ADMIN'), (req, res) => {
   const name = (req.body.name || '').trim();
@@ -435,7 +445,7 @@ router.post('/users/invite', requireAuth, requireRole('ADMIN'), (req, res) => {
   const invite = db.invites.create({ name, username, role, token, expiresAt, usedAt: null });
   audit(req.user.id, 'CREATE', 'users', invite.id, null,
     { event: 'invite', username, role }, req);
-  res.status(201).json({ invite, url: `/?invite=${token}` });
+  res.status(201).json({ invite, url: inviteUrl(token) });
 });
 
 // List still-pending invites (unused + not expired).
@@ -445,7 +455,7 @@ router.get('/users/invites', requireAuth, requireRole('ADMIN'), (req, res) => {
     .filter(i => !i.usedAt && (!i.expiresAt || i.expiresAt >= now))
     .map(i => ({ id: i.id, name: i.name, username: i.username, role: i.role,
                  expiresAt: i.expiresAt, createdAt: i.createdAt,
-                 url: `/?invite=${i.token}` }));
+                 url: inviteUrl(i.token) }));
   res.json(invites);
 });
 

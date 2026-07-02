@@ -350,6 +350,10 @@ Copy `.env.example` to `.env`:
 
 ```
 PORT=3000
+PUBLIC_URL=http://192.168.1.20:3000         # optional — this host's address as
+                                            #   reached from other machines; makes
+                                            #   invite links absolute instead of
+                                            #   "localhost". Unset for single-machine use
 SESSION_SECRET=your_long_random_string     # cookie signing
 SIGNATURE_SECRET=another_long_random_string # e-signature HMAC key — don't change
                                             # after signatures exist, or verification

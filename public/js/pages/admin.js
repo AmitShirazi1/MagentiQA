@@ -217,7 +217,7 @@ async function submitInvite() {
   if (!username) return toast('Username is required', 'error');
   try {
     const { url } = await API.inviteUser({ name, username, role });
-    const fullUrl = location.origin + url;
+    const fullUrl = inviteFullUrl(url);
     openModal('Invite created', `
       <p class="text-sm text-secondary mb-16">Share this single-use link with <b>${esc(username)}</b>.
         It expires in 7 days.</p>
@@ -232,8 +232,14 @@ async function submitInvite() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+// The server sends an absolute URL when PUBLIC_URL is configured; otherwise it
+// sends a site-relative path we resolve against the current origin.
+function inviteFullUrl(url) {
+  return /^https?:\/\//i.test(url) ? url : location.origin + url;
+}
+
 function copyInviteLink(url) {
-  const fullUrl = location.origin + url;
+  const fullUrl = inviteFullUrl(url);
   navigator.clipboard.writeText(fullUrl)
     .then(() => toast('Invite link copied', 'success'))
     .catch(() => toast(fullUrl, 'info'));
