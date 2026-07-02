@@ -127,8 +127,9 @@ These progress figures are **unit-based** — each setup of a setup-tracked
 verification is counted on its own ("setup-verification couples"), so its setups
 split across passed / failed / blocked rather than collapsing into one *Partial*.
 **Coverage** is the share of units with a terminal verdict (**Passed + Failed**),
-and the bar shows the passed / failed / blocked / remaining split. (The *Partial*
-status still applies to a whole verification elsewhere — e.g. the status filters.)
+and the bar shows the passed / failed / blocked / remaining split. (*Partial*
+survives only as a setup-tracked verification's rolled-up badge — never as a
+count, since every setup is bucketed on its own.)
 
 The **Verifications** table lists the version's tests with **attention items
 first** (failed, blocked, in progress, and items pending approval before
@@ -158,20 +159,33 @@ its status and edit its default setup, and — for ADMINs — a **delete** butto
 removes the version and all of its verification runs (this cascade can't be
 undone). The same edits are available from the version page via **Edit version**.
 
-The version page opens with a row of status cards — **Total, Passed, Partial,
-Failed, In Progress, Blocked, Not Started** — each marked by a coloured left
-accent (green passed, red failed, blue in progress, grey not started). The cards
-are also **filters**: click one to show only verifications in that status, and
-click it again (or **Total**) to clear. Below them, a thin **Execution Progress**
-bar stacks the statuses into one segmented chart, with a small *“% complete · %
-passed · % failed”* label at its left edge (hover any segment for its count).
+The version page opens with a row of status cards — **Total, Not Started, In
+Progress, Blocked, Failed, Passed** — each marked by a coloured left accent (green
+passed, red failed, blue in progress, grey not started). These count **execution
+units**: a standard verification is one unit, and **each setup of a setup-tracked
+verification is counted on its own**, so the totals here match the **Execution
+Progress** bar below them exactly. (There is no *Partial* card — a setup that
+resolves partially doesn't exist; each setup is individually passed/failed/etc.
+*Partial* lives on only as a setup-tracked verification's rolled-up row badge.)
+The cards are also **filters**: click one to show only the matching units, and
+click it again (or **Total**) to clear. The Execution Progress bar stacks the
+statuses into one segmented chart, with a small *“% complete · % passed · %
+failed”* label at its left edge (hover any segment for its count).
+
+The **Verifications** list groups tests by tag. A standard verification is a
+single row; a **setup-tracked** one is an **expandable parent** — click its
+chevron to reveal a nested sub-row per setup, each showing that setup's own status
+(draft-aware), who ran it, when, and an **Execute** button that jumps straight to
+that setup. Filtering by a status auto-expands the setup-tracked verifications
+that contain a matching setup and shows just those setups, so clicking **Blocked**
+takes you right to the blocked ones.
 
 **In Progress** and **Blocked** reflect work that's under way but not yet signed:
-a verification counts as **In Progress** as soon as someone records a step in an
-unsigned run, and as **Blocked** if any recorded step is marked *Blocked* (a
-blocker outranks in-progress work). Because these come from the shared draft
-(see [Running a verification](#10-running-a-verification)), anyone viewing the
-version sees them, and they clear the moment the run is signed to a final verdict.
+a unit counts as **In Progress** as soon as someone records a step in an unsigned
+run of it, and as **Blocked** if any recorded step is marked *Blocked* (a blocker
+outranks in-progress work). Because these come from the shared draft (see
+[Running a verification](#10-running-a-verification)), anyone viewing the version
+sees them, and they clear the moment that run is signed to a final verdict.
 
 A collapsible **Default Setup** panel sits at the top of the page. This is the
 standard test environment and technician-screen configuration that applies to
@@ -390,10 +404,11 @@ Approval is a **version-level sign-off** — an authority certifying that the
 version was verified by all the verifications in its report.
 
 - **Requesting:** on a version, click **Request approval**. A request is also
-  created **automatically** once the version reaches **100% coverage** (every
-  verification has a terminal verdict — Passed, Failed or Partial). A version has
-  at most one open request; if coverage later drops, an *auto*-request is
-  withdrawn (a manual one is kept).
+  created **automatically** once the version reaches **100% coverage** — every
+  execution **unit** has a terminal verdict (Passed or Failed), which for a
+  setup-tracked verification means *every one of its setups*. A version has at most
+  one open request; if coverage later drops (including when a fresh in-progress
+  draft reopens a unit), an *auto*-request is withdrawn (a manual one is kept).
 - **Resolving:** the request appears on the **Approvals** page (and the dashboard
   "Approvals" count / work queue). An **ADMIN** or **APPROVER** can **Approve** or
   **Reject** (optionally with a comment).

@@ -3,22 +3,24 @@ const router = express.Router();
 const db = require('../lib/db');
 const { audit } = require('../lib/audit');
 const { requireAuth, requireRole } = require('../lib/auth');
-const { effectiveStatus, versionUnitStats } = require('../lib/rollup');
+const { versionUnitStats } = require('../lib/rollup');
 const { deleteVersionCascade } = require('../lib/cascade');
 const { DEFAULT_SETUP_TEXT } = require('../lib/setups');
 
-/** Count version-tests by their effective (setup-rolled-up) status. */
-function statusCounts(vTests) {
-  const statuses = vTests.map(effectiveStatus);
-  const count = s => statuses.filter(x => x === s).length;
+/**
+ * Version-view status counts, in **units**: each setup of a setup-tracked
+ * verification is counted on its own (standard verifications count as one). No
+ * PARTIAL bucket — setups resolve individually. `testCount` is the unit total.
+ */
+function statusCounts(versionId) {
+  const u = versionUnitStats(versionId);
   return {
-    testCount:  vTests.length,
-    passed:     count('PASSED'),
-    partial:    count('PARTIAL'),
-    failed:     count('FAILED'),
-    inProgress: count('IN_PROGRESS'),
-    blocked:    count('BLOCKED'),
-    notStarted: count('NOT_STARTED'),
+    testCount:  u.total,
+    passed:     u.passed,
+    failed:     u.failed,
+    inProgress: u.inProgress,
+    blocked:    u.blocked,
+    notStarted: u.notStarted,
   };
 }
 
@@ -89,10 +91,7 @@ router.get('/:projectId/versions', requireAuth, (req, res) => {
     sortDir: 'desc',
   });
 
-  const result = versions.map(v => {
-    const vTests = db.versionTests.findAll({ versionId: v.id });
-    return { ...v, ...statusCounts(vTests) };
-  });
+  const result = versions.map(v => ({ ...v, ...statusCounts(v.id) }));
   res.json(result);
 });
 
@@ -143,12 +142,10 @@ router.post('/:projectId/versions', requireAuth, (req, res) => {
 router.get('/:projectId/versions/:versionId', requireAuth, (req, res) => {
   const version = db.versions.findById(req.params.versionId);
   if (!version) return res.status(404).json({ error: 'Not found' });
-  const vTests = db.versionTests.findAll({ versionId: version.id })
-    .filter(vt => db.tests.findById(vt.testDefId));   // ignore links to deleted definitions
   res.json({
     ...version,
     defaultSetup: version.defaultSetup ?? DEFAULT_SETUP_TEXT,   // pre-feature versions
-    ...statusCounts(vTests),
+    ...statusCounts(version.id),
     unitStats: versionUnitStats(version.id),
   });
 });

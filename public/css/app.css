@@ -653,6 +653,31 @@ tbody td { padding: 11px 16px; vertical-align: middle; color: var(--text-primary
    every group table since they share the same container width. */
 .vd-table td.vd-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ── Hierarchical setup rows (setup-tracked verifications) ─────────────────── */
+.vd-actions { display: inline-flex; gap: 6px; flex-wrap: nowrap; align-items: center; }
+
+/* Disclosure chevron on a parent verification row; rotates open when expanded. */
+.vd-disclosure {
+  border: 0; background: none; cursor: pointer; padding: 2px; margin-right: 2px;
+  color: var(--text-muted); display: inline-flex; vertical-align: middle;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.vd-disclosure:hover { color: var(--text-primary); }
+.vd-disclosure svg { width: 13px; height: 13px; }
+.vd-parent.expanded .vd-disclosure { transform: rotate(90deg); color: var(--text-primary); }
+
+/* Setup sub-rows read as clearly subordinate: tinted, smaller, tree-connected. */
+.vd-setup-row > td { background: var(--bg-elevated); font-size: 12.5px; padding-top: 7px; padding-bottom: 7px; }
+.vd-setup-row:hover > td { background: var(--bg-hover); }
+.vd-setup-row td.vd-setup-id { position: relative; padding-left: 34px; color: var(--text-secondary); }
+.vd-setup-row td.vd-setup-id::before {
+  content: ""; position: absolute; left: 16px; top: 0; bottom: 50%; width: 9px;
+  border-left: 1.5px solid var(--border-strong);
+  border-bottom: 1.5px solid var(--border-strong);
+  border-bottom-left-radius: 5px;
+}
+.vd-setup-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+
 /* ── Status Badges ─────────────────────────────────────────────────────────── */
 tr.row-muted td { opacity: 0.55; }
 

@@ -121,16 +121,14 @@ function renderVersionTimelineItem(v, projectId, isLatest) {
           </div>
         </div>
         <div class="version-stats">
-          <span class="version-stat"><b>${v.testCount}</b> tests</span>
+          <span class="version-stat"><b>${v.testCount}</b> units</span>
           <span class="version-stat" style="color:var(--pass)"><b style="color:var(--pass)">${v.passed}</b> passed</span>
           <span class="version-stat" style="color:${v.failed > 0 ? 'var(--fail)' : 'inherit'}"><b style="color:${v.failed > 0 ? 'var(--fail)' : 'inherit'}">${v.failed}</b> failed</span>
         </div>
-        ${segmentedBar([
-          { label: 'Passed', value: v.passed, cls: 'seg-pass', swatch: 'var(--chart-3)' },
-          { label: 'Partial', value: v.partial || 0, cls: 'seg-partial', swatch: 'var(--warn)' },
-          { label: 'Failed', value: v.failed, cls: 'seg-fail', swatch: 'var(--chart-4)' },
-          { label: 'Remaining', value: Math.max(0, (v.testCount || 0) - (v.passed || 0) - (v.partial || 0) - (v.failed || 0)), cls: 'seg-rest', swatch: 'var(--chart-6)' },
-        ], { legend: false })}
+        ${segmentedBar(statusSegments({
+          total: v.testCount, notStarted: v.notStarted, inProgress: v.inProgress,
+          blocked: v.blocked, failed: v.failed, passed: v.passed,
+        }), { legend: false })}
       </div>
     </div>`;
 }

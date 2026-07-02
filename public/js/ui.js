@@ -436,8 +436,19 @@ function sortTable(th) {
   const arrow = th.querySelector('.sort-arrow');
   if (arrow) arrow.textContent = dir === 'asc' ? '▲' : '▼';
 
-  const rows = [...tbody.querySelectorAll('tr')];
-  rows.sort((ra, rb) => {
+  // Hierarchy-aware: rows with data-parent are nested children (e.g. setup rows
+  // under a verification). Sort only the top-level rows and re-append each with
+  // its children in their original order, so children stay attached. Flat tables
+  // have no data-parent, so this behaves exactly as a plain row sort.
+  const all = [...tbody.querySelectorAll('tr')];
+  const childrenOf = new Map();
+  const tops = [];
+  for (const r of all) {
+    const p = r.dataset.parent;
+    if (p) { (childrenOf.get(p) || childrenOf.set(p, []).get(p)).push(r); }
+    else tops.push(r);
+  }
+  tops.sort((ra, rb) => {
     const ca = ra.children[idx], cb = rb.children[idx];
     const va = ca?.dataset.sort ?? ca?.textContent.trim() ?? '';
     const vb = cb?.dataset.sort ?? cb?.textContent.trim() ?? '';
@@ -447,7 +458,10 @@ function sortTable(th) {
       : va.localeCompare(vb, undefined, { numeric: true, sensitivity: 'base' });
     return dir === 'asc' ? cmp : -cmp;
   });
-  rows.forEach(r => tbody.appendChild(r));
+  tops.forEach(r => {
+    tbody.appendChild(r);
+    (childrenOf.get(r.dataset.vt) || []).forEach(c => tbody.appendChild(c));
+  });
 }
 
 function sortableTH(label, opts = {}) {

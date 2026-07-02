@@ -15,6 +15,97 @@ function statusBadgeWithCount(vt) {
   return `${b} <span class="text-muted text-sm tabular" title="${n}/${c.total} ${hint}">${n}/${c.total}</span>`;
 }
 
+// ── Version-view unit helpers ─────────────────────────────────────────────────
+// The version view counts *units*: a standard verification is one unit; each
+// setup of a setup-tracked verification is its own unit. These helpers keep the
+// hierarchical list, the KPI filters and the counts speaking the same vocabulary
+// (PASSED / FAILED / BLOCKED / IN_PROGRESS / NOT_STARTED — no PARTIAL at the unit
+// level; PARTIAL survives only as a setup-tracked verification's rolled-up badge).
+function unitKey(status) {
+  return ['PASSED', 'FAILED', 'BLOCKED', 'IN_PROGRESS'].includes(status) ? status : 'NOT_STARTED';
+}
+// A verification's units as sent by the API (fallback: treat as a single unit).
+function vtUnits(vt) {
+  return Array.isArray(vt.units) && vt.units.length
+    ? vt.units : [{ setupId: null, status: vt.status || 'NOT_STARTED' }];
+}
+// A setup-tracked verification shown as an expandable parent (has ≥1 setup unit).
+function vtIsTracked(vt) {
+  return vt.test?.type === 'SETUP_TRACKED' && Array.isArray(vt.units) && vt.units.length > 0;
+}
+function cssEsc(s) { return (window.CSS && CSS.escape) ? CSS.escape(String(s)) : String(s); }
+function setupDetailFrom(data) {
+  if (!data || typeof data !== 'object') return '';
+  // Prefer the descriptive "Setup Details" column; the id column is already shown.
+  for (const k of Object.keys(data)) {
+    if (/setup\s*details?/i.test(k) && String(data[k] ?? '').trim()) return String(data[k]).trim();
+  }
+  const vals = Object.values(data).map(v => String(v ?? '').trim()).filter(Boolean);
+  return vals[0] || '';
+}
+
+// Execute button whose label tracks the status; a setupId deep-links to that setup.
+function vdExecBtn(vt, versionId, projectId, status, setupId) {
+  const extra = setupId ? `,setupId:'${esc(setupId)}'` : '';
+  return `<button class="btn-secondary btn-sm" onclick="navigate('test-execute',{versionTestId:'${vt.id}',versionId:'${versionId}',projectId:'${projectId}'${extra}})">${ICONS.play} ${execActionLabel(status)}</button>`;
+}
+// Verification-level manage actions (reset / unlink) — never per-setup.
+function vdManageBtns(vt, versionId, projectId, started) {
+  const title = esc(vt.test?.title || '');
+  return `${started ? `<button class="icon-btn" title="Reset to Not Started (deletes this version's executions)" aria-label="Reset verification to Not Started" onclick="resetVerification('${projectId}','${versionId}','${vt.id}','${title}')">${ICONS.reset}</button>` : ''}
+    <button class="icon-btn" title="Unlink from this version" aria-label="Unlink verification from this version" onclick="unlinkVerification('${projectId}','${versionId}','${vt.id}','${title}')">${ICONS.unlink}</button>`;
+}
+
+// Table row(s) for one verification: a leaf row for standard tests, or an
+// expandable parent + one nested sub-row per setup for setup-tracked tests.
+function vdRowsFor(vt, versionId, projectId) {
+  const units = vtUnits(vt);
+  const tags = (vt.test?.tags || []).slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join(' ');
+  const titleLink = `<span class="clickable-title" onclick="openTestContentModal('${vt.id}','${versionId}')">${esc(vt.test?.title || '—')}</span>`;
+
+  if (!vtIsTracked(vt)) {
+    const st = units[0].status;
+    const started = unitKey(st) !== 'NOT_STARTED';
+    return `
+      <tr class="vd-top vd-leaf" data-vt="${vt.id}" data-status="${unitKey(st)}">
+        <td class="mono">${esc(vt.test?.testId || '—')}</td>
+        <td class="vd-title" title="${esc(vt.test?.title || '')}">${titleLink}</td>
+        <td><div class="vd-actions">${vdExecBtn(vt, versionId, projectId, st, null)} ${vdManageBtns(vt, versionId, projectId, started)}</div></td>
+        <td>${tags}</td>
+        <td data-sort="${unitKey(st)}">${badge(st)}</td>
+        <td class="t-meta" data-sort="${vt.lastExecutedAt || ''}">${relTime(vt.lastExecutedAt)}</td>
+      </tr>`;
+  }
+
+  const statusesAttr = [...new Set(units.map(u => unitKey(u.status)))].join(' ');
+  const started = units.some(u => unitKey(u.status) !== 'NOT_STARTED');
+  const parent = `
+      <tr class="vd-top vd-parent" data-vt="${vt.id}" data-unit-statuses="${statusesAttr}">
+        <td class="mono">
+          <button class="vd-disclosure" onclick="toggleSetupRows('${vt.id}')" aria-label="Show setups" title="Show setups">${ICONS.chevR}</button>
+          ${esc(vt.test?.testId || '—')}
+        </td>
+        <td class="vd-title" title="${esc(vt.test?.title || '')}">${titleLink}</td>
+        <td><div class="vd-actions">${vdExecBtn(vt, versionId, projectId, vt.status, null)} ${vdManageBtns(vt, versionId, projectId, started)}</div></td>
+        <td>${tags}</td>
+        <td data-sort="${esc(vt.status || '')}">${statusBadgeWithCount(vt)}</td>
+        <td class="t-meta" data-sort="${vt.lastExecutedAt || ''}">${relTime(vt.lastExecutedAt)}</td>
+      </tr>`;
+  const kids = units.map(u => {
+    const detail = setupDetailFrom(u.setupData);
+    return `
+      <tr class="vd-setup-row" data-parent="${vt.id}" data-status="${unitKey(u.status)}" style="display:none">
+        <td class="mono vd-setup-id">${esc(u.setupId || '—')}</td>
+        <td class="vd-setup-detail" title="${esc(detail)}">${detail ? esc(detail) : '<span class="text-muted">—</span>'}</td>
+        <td><div class="vd-actions">${vdExecBtn(vt, versionId, projectId, u.status, u.setupId)}</div></td>
+        <td>${u.testerName ? `<span class="t-meta">${esc(u.testerName)}</span>` : ''}</td>
+        <td data-sort="${unitKey(u.status)}">${badge(u.status)}</td>
+        <td class="t-meta" data-sort="${u.lastExecutedAt || ''}">${relTime(u.lastExecutedAt)}</td>
+      </tr>`;
+  }).join('');
+  return parent + kids;
+}
+
 // ── Version Detail ────────────────────────────────────────────────────────────
 async function renderVersionDetail(params = {}) {
   const { projectId, versionId } = params;
@@ -44,7 +135,8 @@ async function renderVersionDetail(params = {}) {
     // A fresh visit starts unfiltered.
     _vdFilter = null;
 
-    // KPI cards double as status filters for the verification list below.
+    // KPI cards double as status filters. They count *units* (each setup on its
+    // own), matching the Execution Progress bar exactly — no Partial at unit level.
     const statsHtml = `
       <div class="kpi-grid" id="vd-kpis">
         ${kpiCard('Total', version.testCount,        { filter: true, status: 'ALL',         selected: true })}
@@ -52,7 +144,6 @@ async function renderVersionDetail(params = {}) {
         ${kpiCard('In Progress', version.inProgress, { tone: 'info',    filter: true, status: 'IN_PROGRESS' })}
         ${kpiCard('Blocked', version.blocked || 0,   { tone: 'blocked', filter: true, status: 'BLOCKED' })}
         ${kpiCard('Failed', version.failed,          { tone: 'fail',    filter: true, status: 'FAILED', alert: version.failed > 0 })}
-        ${kpiCard('Partial', version.partial || 0,   { tone: 'warn',    filter: true, status: 'PARTIAL' })}
         ${kpiCard('Passed', version.passed,          { tone: 'pass',    filter: true, status: 'PASSED' })}
       </div>
       <div class="card mb-16">
@@ -61,13 +152,14 @@ async function renderVersionDetail(params = {}) {
       </div>`;
 
     const testsByTag = Object.entries(byTag).sort(([a], [b]) => a.localeCompare(b)).map(([tag, tests], gi) => {
-      const groupPassed = tests.filter(t => t.status === 'PASSED').length;
+      const groupUnits = tests.flatMap(vtUnits);
+      const groupPassed = groupUnits.filter(u => unitKey(u.status) === 'PASSED').length;
       return `
       <div class="card flush mb-16 test-group">
         <div class="card-header collapsible-header open" onclick="toggleTestGroup(this, 'tg-${gi}')">
           <span class="collapsible-arrow">${ICONS.chevR}</span>
           <span class="card-title"><span class="path-crumb">${esc(tag)}</span></span>
-          <span class="t-meta ml-auto tabular">${groupPassed}/${tests.length} passed</span>
+          <span class="t-meta ml-auto tabular">${groupPassed}/${groupUnits.length} passed</span>
         </div>
         <div class="table-wrap" id="tg-${gi}">
           <table class="vd-table">
@@ -88,28 +180,7 @@ async function renderVersionDetail(params = {}) {
               ${sortableTH('Last Run')}
             </tr></thead>
             <tbody>
-              ${tests.map(vt => {
-                const started = (vt.status || 'NOT_STARTED') !== 'NOT_STARTED';
-                return `
-                <tr data-status="${esc(vt.status || '')}">
-                  <td class="mono">${esc(vt.test?.testId || '—')}</td>
-                  <td class="vd-title" title="${esc(vt.test?.title || '')}">
-                    <span class="clickable-title" onclick="openTestContentModal('${vt.id}','${versionId}')">${esc(vt.test?.title || '—')}</span>
-                  </td>
-                  <td>
-                    <div style="display:inline-flex;gap:6px;flex-wrap:nowrap;align-items:center">
-                      <button class="btn-secondary btn-sm" onclick="navigate('test-execute',{versionTestId:'${vt.id}',versionId:'${versionId}',projectId:'${projectId}'})">${ICONS.play} ${execActionLabel(vt.status)}</button>
-                      ${started
-                        ? `<button class="icon-btn" title="Reset to Not Started (deletes this version's executions)" aria-label="Reset verification to Not Started" onclick="resetVerification('${projectId}','${versionId}','${vt.id}','${esc(vt.test?.title || '')}')">${ICONS.reset}</button>`
-                        : ''}
-                      <button class="icon-btn" title="Unlink from this version" aria-label="Unlink verification from this version" onclick="unlinkVerification('${projectId}','${versionId}','${vt.id}','${esc(vt.test?.title || '')}')">${ICONS.unlink}</button>
-                    </div>
-                  </td>
-                  <td>${(vt.test?.tags || []).slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join(' ')}</td>
-                  <td data-sort="${esc(vt.status || '')}">${statusBadgeWithCount(vt)}</td>
-                  <td class="t-meta" data-sort="${vt.lastExecutedAt || ''}">${relTime(vt.lastExecutedAt)}</td>
-                </tr>`;
-              }).join('')}
+              ${tests.map(vt => vdRowsFor(vt, versionId, projectId)).join('')}
             </tbody>
           </table>
         </div>
@@ -127,7 +198,7 @@ async function renderVersionDetail(params = {}) {
             <span>${esc(version.name)}</span>
           </div>
           <h1 style="display:flex;align-items:center;gap:12px">${esc(version.name)} ${badge(version.status)}</h1>
-          <p class="subtitle">${vTests.length} verification${vTests.length === 1 ? '' : 's'} in this version</p>
+          <p class="subtitle">${vTests.length} verification${vTests.length === 1 ? '' : 's'}${version.testCount !== vTests.length ? ` · ${version.testCount} execution units (setups counted individually)` : ''} in this version</p>
           <div class="vd-setup-toggle" onclick="toggleTestGroup(this,'vd-setup')">
             <span class="collapsible-arrow">${ICONS.chevR}</span>
             <span>Default Setup</span>
@@ -215,9 +286,32 @@ function toggleTestGroup(header, bodyId) {
   if (body) body.classList.toggle('hidden', !isOpen);
 }
 
+// ── Setup expand/collapse ─────────────────────────────────────────────────────
+// Setup-tracked verifications render as a parent row with nested setup sub-rows.
+// A sub-row is visible when its parent is expanded and it matches any active
+// filter. Parents collapse by default; a status filter auto-expands matches.
+function setupChildrenOf(vtId) {
+  return document.querySelectorAll(`#page-version-detail tr.vd-setup-row[data-parent="${cssEsc(vtId)}"]`);
+}
+function showSetupChildren(vtId, open) {
+  setupChildrenOf(vtId).forEach(k => {
+    const match = !_vdFilter || k.dataset.status === _vdFilter;
+    k.style.display = (open && match) ? '' : 'none';
+  });
+}
+function toggleSetupRows(vtId) {
+  const parent = document.querySelector(`#page-version-detail tr.vd-parent[data-vt="${cssEsc(vtId)}"]`);
+  if (!parent) return;
+  const open = !parent.classList.contains('expanded');
+  parent.classList.toggle('expanded', open);
+  showSetupChildren(vtId, open);
+}
+
 // ── Version dashboard status filter ───────────────────────────────────────────
-// Clicking a KPI card filters the grouped verification tables below by status.
-// 'ALL' (the Total card) clears; re-clicking the active filter also clears.
+// Clicking a KPI card filters the grouped verification tables below by unit
+// status. A standard verification matches its own status; a setup-tracked one
+// matches (and auto-expands, showing only the matching setups) when any of its
+// setups is in that status. 'ALL' (Total) clears; re-clicking the filter clears.
 let _vdFilter = null;
 
 function filterVersionTests(status) {
@@ -230,12 +324,22 @@ function filterVersionTests(status) {
 
   const page = document.getElementById('page-version-detail');
   if (!page) return;
-  page.querySelectorAll('tr[data-status]').forEach(tr => {
-    tr.style.display = (!_vdFilter || tr.dataset.status === _vdFilter) ? '' : 'none';
+  page.querySelectorAll('tr.vd-top').forEach(top => {
+    if (top.classList.contains('vd-parent')) {
+      const statuses = (top.dataset.unitStatuses || '').split(' ').filter(Boolean);
+      const show = !_vdFilter || statuses.includes(_vdFilter);
+      top.style.display = show ? '' : 'none';
+      const open = show && !!_vdFilter;   // auto-expand to reveal the matching setups
+      top.classList.toggle('expanded', open);
+      showSetupChildren(top.dataset.vt, open);
+    } else {
+      top.style.display = (!_vdFilter || top.dataset.status === _vdFilter) ? '' : 'none';
+    }
   });
-  // Collapse tag groups left with no matching rows under the active filter.
+  // Collapse tag groups left with no matching verification under the active
+  // filter (check top-level rows — parents have no data-status of their own).
   page.querySelectorAll('.test-group').forEach(g => {
-    const anyVisible = [...g.querySelectorAll('tr[data-status]')]
+    const anyVisible = [...g.querySelectorAll('tr.vd-top')]
       .some(tr => tr.style.display !== 'none');
     g.style.display = anyVisible ? '' : 'none';
   });
@@ -1063,7 +1167,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 async function renderTestExecute(params = {}) {
-  const { versionTestId, versionId, projectId } = params;
+  const { versionTestId, versionId, projectId, setupId } = params;
   const el = document.getElementById('page-test-execute');
   el.innerHTML = skeletonPage();
 
@@ -1107,7 +1211,8 @@ async function renderTestExecute(params = {}) {
       ids: { versionTestId, versionId, projectId },
       vt, test, steps, setups, setupColumns,
       swVersion: version?.name || '',
-      currentSetupId: setups[0]?.setupId || null,
+      // Deep-link: open the requested setup if it exists, else the first one.
+      currentSetupId: (setupId && setups.some(s => s.setupId === setupId)) ? setupId : (setups[0]?.setupId || null),
       bySetup: {},          // key → { stepState, generalEvidence, summary, deviations }
       execBySetup,
       draftSetups: new Set((drafts || []).map(d => d.setupId).filter(Boolean)),

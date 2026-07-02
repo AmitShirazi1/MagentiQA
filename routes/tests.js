@@ -4,7 +4,7 @@ const db = require('../lib/db');
 const { audit } = require('../lib/audit');
 const { requireAuth, requireRole } = require('../lib/auth');
 const { saveSetups } = require('../lib/setups');
-const { setupRollup } = require('../lib/rollup');
+const { setupRollup, versionTestUnits } = require('../lib/rollup');
 const { deleteVersionTestCascade, resetVersionTestExecutions } = require('../lib/cascade');
 const { autoRequestIfComplete } = require('../lib/approvals');
 const { v4: uuidv4 } = require('uuid');
@@ -242,6 +242,18 @@ router.get('/version/:versionId', requireAuth, (req, res) => {
       versionCoverage = { covered: roll.passed, executed: roll.executed, total: roll.total };
     }
 
+    // Countable units for the hierarchical version view: standard tests yield one
+    // unit; setup-tracked tests yield one per setup (draft-aware status + who ran
+    // it). The unit statuses are what the version-view stats/KPIs count.
+    const setupById = new Map((decorated?.setups || []).map(s => [s.setupId, s]));
+    const units = versionTestUnits(vt).map(u => ({
+      setupId: u.setupId,
+      status: u.status,
+      testerName: u.execution ? (db.users.findById(u.execution.executorId)?.name || null) : null,
+      lastExecutedAt: u.execution?.executedAt || null,
+      setupData: u.setupId ? (setupById.get(u.setupId)?.data || null) : null,
+    }));
+
     return {
       ...vt,
       status,
@@ -250,6 +262,7 @@ router.get('/version/:versionId', requireAuth, (req, res) => {
       lastExecutedAt: lastExec?.executedAt || null,
       lastResult: lastExec?.result || null,
       versionCoverage,
+      units,
     };
   });
   res.json(result);
