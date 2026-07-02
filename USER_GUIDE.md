@@ -180,6 +180,13 @@ that setup. Filtering by a status auto-expands the setup-tracked verifications
 that contain a matching setup and shows just those setups, so clicking **Blocked**
 takes you right to the blocked ones.
 
+A setup-tracked verification's own badge **summarises its setups**: **Blocked** if
+any setup has a blocked step, otherwise **In Progress** if any setup is under way
+or only some are done, otherwise the rolled-up verdict (**Passed** when every setup
+passed, **Partial** when they finished with mixed results, **Not Started** until a
+setup is touched). So a verification never reads "Not Started" once any of its
+setups is in progress or blocked.
+
 **In Progress** and **Blocked** reflect work that's under way but not yet signed:
 a unit counts as **In Progress** as soon as someone records a step in an unsigned
 run of it, and as **Blocked** if any recorded step is marked *Blocked* (a blocker

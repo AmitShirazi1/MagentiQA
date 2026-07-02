@@ -4,7 +4,7 @@ const db = require('../lib/db');
 const { audit } = require('../lib/audit');
 const { requireAuth, requireRole } = require('../lib/auth');
 const { saveSetups } = require('../lib/setups');
-const { setupRollup, versionTestUnits } = require('../lib/rollup');
+const { setupRollup, effectiveStatus, versionTestUnits } = require('../lib/rollup');
 const { deleteVersionTestCascade, resetVersionTestExecutions } = require('../lib/cascade');
 const { autoRequestIfComplete } = require('../lib/approvals');
 const { v4: uuidv4 } = require('uuid');
@@ -229,16 +229,17 @@ router.get('/version/:versionId', requireAuth, (req, res) => {
 
     let decorated = test ? { ...decorateTest(test), steps } : null;
 
-    // Setup-tracked verifications summarise all their setups. `status` is rolled
-    // up (PASSED only when every setup passed; PARTIAL when all ran but some
-    // failed/blocked; IN_PROGRESS while any setup is unexecuted) and recomputed
-    // on read so it stays correct even if setups were added/removed since the
-    // last execution. `versionCoverage` exposes the counts the UI shows.
+    // A setup-tracked verification's overall status summarises all its setups and
+    // is draft-aware (effectiveStatus): BLOCKED if any setup has a blocked mark,
+    // else IN_PROGRESS if any setup is being worked or only some are executed,
+    // else the signed rollup (PASSED when every setup passed, PARTIAL when all ran
+    // with mixed results, NOT_STARTED when none has been touched). `versionCoverage`
+    // exposes the signed passed/executed/total counts the badge shows.
     let status = vt.status;
     let versionCoverage = null;
     if (decorated && decorated.type === 'SETUP_TRACKED') {
       const roll = setupRollup(decorated.setups, executions);
-      status = roll.status;
+      status = effectiveStatus(vt);
       versionCoverage = { covered: roll.passed, executed: roll.executed, total: roll.total };
     }
 
