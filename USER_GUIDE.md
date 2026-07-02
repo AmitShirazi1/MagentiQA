@@ -244,9 +244,11 @@ grouped and searchable. Each definition has:
   editing a verification, the step editor is built for the keyboard: the action
   and expected-result boxes grow to fit and wrap long text (nothing is
   truncated), **Enter** inserts a new step right below the current one, and the
-  **arrow keys** move between boxes — left/right cross into the next box once the
-  cursor reaches the end (or start) of the text, and up/down jump to the same box
-  in the step above or below. Drag a step by its grip handle (⠿, on the left) to
+  **arrow keys** move between boxes — left/right move through the text and cross
+  into the next/previous box once the cursor reaches its end (or start), and
+  up/down move line by line within a wrapped box, then jump to the same box in the
+  step above or below from the first (or last) line. Drag a step by its grip
+  handle (⠿, on the left) to
   reorder it; the step numbers renumber automatically. (Use **Shift+Enter** for a
   line break within a box.)
 - A **type**: *Standard* or *Setup-tracked*.

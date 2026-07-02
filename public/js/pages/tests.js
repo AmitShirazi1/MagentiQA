@@ -907,33 +907,43 @@ function focusStepField(el, where) {
   el.setSelectionRange(pos, pos);
 }
 
-// Whether the caret sits on the first / last visual (wrapped) line of a textarea.
-// A hidden mirror element reproduces the textarea's wrapping so soft-wrapped
-// lines are detected correctly, not just hard newlines.
+// Whether the caret sits on the first / last visual (wrapped) line of a textarea,
+// so ↑/↓ only leave the box from its top/bottom edge and otherwise move line by
+// line as usual. A hidden mirror reproduces the textarea's exact wrapping, then we
+// compare the caret's vertical position against zero-width markers pinned to the
+// first and last lines — no line-height or first-line-offset guesswork.
 function stepCaretLine(el) {
   const pos = el.selectionStart;
   const cs = getComputedStyle(el);
   const mirror = document.createElement('div');
   ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing',
-   'textTransform', 'lineHeight', 'tabSize', 'wordBreak'].forEach(p => { mirror.style[p] = cs[p]; });
+   'textTransform', 'lineHeight', 'tabSize', 'wordBreak', 'textIndent'].forEach(p => { mirror.style[p] = cs[p]; });
   mirror.style.position = 'absolute';
   mirror.style.top = '-9999px';
   mirror.style.left = '-9999px';
   mirror.style.visibility = 'hidden';
   mirror.style.boxSizing = 'content-box';
-  mirror.style.width = cs.width;               // content-box width → wraps like the textarea
+  // Wrap at the textarea's true content width. clientWidth includes padding but
+  // not the border/scrollbar; getComputedStyle('width') can report the border-box
+  // value, so derive the content width from clientWidth instead.
+  const contentW = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  mirror.style.width = Math.max(0, contentW) + 'px';
   mirror.style.whiteSpace = 'pre-wrap';
   mirror.style.overflowWrap = 'break-word';
-  mirror.appendChild(document.createTextNode(el.value.slice(0, pos)));
-  const marker = document.createElement('span');
-  marker.textContent = el.value.slice(pos) || '.';
-  mirror.appendChild(marker);
+  const mark = () => { const s = document.createElement('span'); s.textContent = '\u200b'; return s; };
+  const startM = mark(), caretM = mark(), endM = mark();  // pinned to first / caret / last line
+  mirror.append(
+    startM,
+    document.createTextNode(el.value.slice(0, pos)),
+    caretM,
+    document.createTextNode(el.value.slice(pos)),
+    endM,
+  );
   document.body.appendChild(mirror);
-  const lh = parseFloat(cs.lineHeight) || (parseFloat(cs.fontSize) * 1.5);
-  const top = marker.offsetTop;
-  const bottom = mirror.scrollHeight - top;
+  const first = caretM.offsetTop <= startM.offsetTop;
+  const last = caretM.offsetTop >= endM.offsetTop;
   document.body.removeChild(mirror);
-  return { first: top < lh * 0.75, last: bottom <= lh * 1.25 };
+  return { first, last };
 }
 
 // Keyboard navigation across the step boxes:
