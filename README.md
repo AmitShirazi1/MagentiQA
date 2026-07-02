@@ -49,8 +49,8 @@ docker compose down
 ```
 
 Then open **http://localhost:3000** on the host, or from any other PC on the
-network **http://&lt;host-LAN-IP&gt;:3000** (find the IP with `hostname -I`). Log in
-with `sysadmin` / `admin123`.
+network **http://172.16.16.60:3000** (this host's LAN IP — confirm anytime with
+`hostname -I`). Log in with `sysadmin` / `admin123`.
 
 Notes:
 - **Port already in use?** The container publishes host port `3000`. If you also
