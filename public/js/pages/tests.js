@@ -805,9 +805,11 @@ function toggleNewTestType() {
   if (tracked) renderSetupEditor('nt-setup-editor');
 }
 
-// Markup for one editable step row. Rows are drag-reorderable via the grip
-// handle; `collectSteps` reads DOM order, so reordering the DOM is all that's
-// needed to persist the new order. Shared by the new- and edit-verification forms.
+// Markup for one editable step row. The action/expected boxes are auto-growing
+// textareas (wrap long text instead of truncating) with keyboard navigation
+// (see stepKey). Rows are drag-reorderable via the grip handle; `collectSteps`
+// reads DOM order, so reordering the DOM is all that's needed to persist the new
+// order. Shared by the new- and edit-verification forms.
 function stepRowHTML(containerId, action = '', expected = '') {
   return `
     <div class="step-edit-row"
@@ -816,8 +818,10 @@ function stepRowHTML(containerId, action = '', expected = '') {
       <span class="step-grip" draggable="true" title="Drag to reorder" aria-label="Drag to reorder"
             ondragstart="stepDragStart(event, this)" ondragend="stepDragEnd('${containerId}')">${ICONS.grip}</span>
       <span class="mono step-edit-num"></span>
-      <input type="text" placeholder="Action / step description" class="step-action" value="${esc(action)}">
-      <input type="text" placeholder="Expected result" class="step-expected" value="${esc(expected)}">
+      <textarea rows="1" class="step-edit-field step-edit-action" placeholder="Action / step description"
+                onkeydown="stepKey(event, this)" oninput="autoGrowStep(this)">${esc(action)}</textarea>
+      <textarea rows="1" class="step-edit-field step-edit-expected" placeholder="Expected result"
+                onkeydown="stepKey(event, this)" oninput="autoGrowStep(this)">${esc(expected)}</textarea>
       <button class="icon-btn" aria-label="Remove step" onclick="this.closest('.step-edit-row').remove();renumberSteps('${containerId}')">${ICONS.trash}</button>
     </div>`;
 }
@@ -827,7 +831,9 @@ function addStepRow(containerId) {
   container.insertAdjacentHTML('beforeend', stepRowHTML(containerId));
   const row = container.lastElementChild;
   renumberSteps(containerId);
-  row.querySelector('.step-action').focus();
+  const ta = row.querySelector('.step-edit-action');
+  autoGrowStep(ta);
+  ta.focus();
 }
 
 function renumberSteps(containerId) {
@@ -868,9 +874,109 @@ function collectSteps(containerId) {
   const container = document.getElementById(containerId);
   return [...container.children].map((row, i) => ({
     order: i + 1,
-    action: row.querySelector('.step-action')?.value.trim() || '',
-    expectedResult: row.querySelector('.step-expected')?.value.trim() || '',
+    action: row.querySelector('.step-edit-action')?.value.trim() || '',
+    expectedResult: row.querySelector('.step-edit-expected')?.value.trim() || '',
   })).filter(s => s.action);
+}
+
+// ── Step editor: auto-grow + keyboard navigation ──────────────────────────────
+// Textareas grow to fit their content so nothing is truncated.
+function autoGrowStep(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+function growAllSteps(containerId) {
+  document.getElementById(containerId)?.querySelectorAll('.step-edit-field').forEach(autoGrowStep);
+}
+
+// Insert a fresh step row immediately below `row` and focus it (Enter behaviour).
+function insertStepRowAfter(row) {
+  const containerId = row.parentElement.id;
+  row.insertAdjacentHTML('afterend', stepRowHTML(containerId));
+  const newRow = row.nextElementSibling;
+  renumberSteps(containerId);
+  const ta = newRow.querySelector('.step-edit-action');
+  autoGrowStep(ta);
+  ta.focus();
+}
+
+function focusStepField(el, where) {
+  if (!el) return;
+  el.focus();
+  const pos = where === 'end' ? el.value.length : 0;
+  el.setSelectionRange(pos, pos);
+}
+
+// Whether the caret sits on the first / last visual (wrapped) line of a textarea.
+// A hidden mirror element reproduces the textarea's wrapping so soft-wrapped
+// lines are detected correctly, not just hard newlines.
+function stepCaretLine(el) {
+  const pos = el.selectionStart;
+  const cs = getComputedStyle(el);
+  const mirror = document.createElement('div');
+  ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing',
+   'textTransform', 'lineHeight', 'tabSize', 'wordBreak'].forEach(p => { mirror.style[p] = cs[p]; });
+  mirror.style.position = 'absolute';
+  mirror.style.top = '-9999px';
+  mirror.style.left = '-9999px';
+  mirror.style.visibility = 'hidden';
+  mirror.style.boxSizing = 'content-box';
+  mirror.style.width = cs.width;               // content-box width → wraps like the textarea
+  mirror.style.whiteSpace = 'pre-wrap';
+  mirror.style.overflowWrap = 'break-word';
+  mirror.appendChild(document.createTextNode(el.value.slice(0, pos)));
+  const marker = document.createElement('span');
+  marker.textContent = el.value.slice(pos) || '.';
+  mirror.appendChild(marker);
+  document.body.appendChild(mirror);
+  const lh = parseFloat(cs.lineHeight) || (parseFloat(cs.fontSize) * 1.5);
+  const top = marker.offsetTop;
+  const bottom = mirror.scrollHeight - top;
+  document.body.removeChild(mirror);
+  return { first: top < lh * 0.75, last: bottom <= lh * 1.25 };
+}
+
+// Keyboard navigation across the step boxes:
+//  • Enter        → add a step below this one (Shift+Enter = literal newline).
+//  • ←/→          → move within the text, then cross to the previous/next box
+//                   (action ⇄ expected ⇄ next row) once at the text boundary.
+//  • ↑/↓          → move within a wrapped box, then to the same box in the
+//                   step above/below once on the first/last line.
+function stepKey(e, el) {
+  const key = e.key;
+  const row = el.closest('.step-edit-row');
+  const rows = [...row.parentElement.children].filter(r => r.classList.contains('step-edit-row'));
+  const ri = rows.indexOf(row);
+  const isAction = el.classList.contains('step-edit-action');
+
+  if (key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    insertStepRowAfter(row);
+    return;
+  }
+
+  if (!key.startsWith('Arrow')) return;
+
+  const flat = rows.flatMap(r => [r.querySelector('.step-edit-action'), r.querySelector('.step-edit-expected')]);
+  const fi = flat.indexOf(el);
+  const collapsed = el.selectionStart === el.selectionEnd;
+  const atStart = collapsed && el.selectionStart === 0;
+  const atEnd = collapsed && el.selectionStart === el.value.length;
+  const sameCol = r => r.querySelector(isAction ? '.step-edit-action' : '.step-edit-expected');
+
+  if (key === 'ArrowRight' && atEnd && fi < flat.length - 1) {
+    e.preventDefault();
+    focusStepField(flat[fi + 1], 'start');
+  } else if (key === 'ArrowLeft' && atStart && fi > 0) {
+    e.preventDefault();
+    focusStepField(flat[fi - 1], 'end');
+  } else if (key === 'ArrowUp' && ri > 0 && stepCaretLine(el).first) {
+    e.preventDefault();
+    focusStepField(sameCol(rows[ri - 1]), 'end');
+  } else if (key === 'ArrowDown' && ri < rows.length - 1 && stepCaretLine(el).last) {
+    e.preventDefault();
+    focusStepField(sameCol(rows[ri + 1]), 'start');
+  }
 }
 
 // ── Setups editor (dynamic tracker table) ─────────────────────────────────────
@@ -1127,6 +1233,7 @@ async function openEditTestModal(testId) {
       <button class="btn-primary" onclick="saveTest('${testId}', ${isTracked})">Save Changes</button>
     </div>`, { onOpen: () => {
       renumberSteps('et-steps-list');
+      growAllSteps('et-steps-list');
       if (isTracked) { initSetupModel(test.setupColumns, test.setups); renderSetupEditor('et-setup-editor'); }
     } });
 }

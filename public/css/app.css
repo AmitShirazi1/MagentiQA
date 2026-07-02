@@ -1367,6 +1367,18 @@ input.invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--fail) 18%, 
 }
 .step-edit-row.dragging { opacity: 0.45; }
 .step-edit-num { padding-top: 9px; color: var(--text-muted); }
+/* Auto-growing step boxes: wrap long text instead of truncating; height is set
+   by JS (autoGrowStep), so disable manual resize and hide the scrollbar. */
+.step-edit-field {
+  min-height: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
 .step-grip {
   display: flex; align-items: center; justify-content: center;
   padding-top: 9px; color: var(--text-muted); cursor: grab;
