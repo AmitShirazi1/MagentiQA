@@ -1215,7 +1215,6 @@ async function renderTestExecute(params = {}) {
       currentSetupId: (setupId && setups.some(s => s.setupId === setupId)) ? setupId : (setups[0]?.setupId || null),
       bySetup: {},          // key → { stepState, generalEvidence, summary, deviations }
       execBySetup,
-      draftSetups: new Set((drafts || []).map(d => d.setupId).filter(Boolean)),
     };
 
     // Build per-setup working state, seeded from any saved draft.
@@ -1289,12 +1288,20 @@ function buildDraftPayload() {
 
 function scheduleDraftSave() { clearTimeout(_draftTimer); _draftTimer = setTimeout(saveDraftNow, 500); }
 
-// Best-effort persistence of the current setup's in-progress marks.
+// Best-effort persistence of the current setup's in-progress marks. An empty
+// payload (no step results, summary or deviations — e.g. from just opening a
+// setup) is not persisted, so merely visiting a setup never creates a phantom
+// draft that would misread as "in progress" in the version view or the overview.
+function draftIsEmpty(p) {
+  return (!p.stepResults || p.stepResults.length === 0) && !p.summary && !p.deviations;
+}
 async function saveDraftNow() {
   clearTimeout(_draftTimer);
   if (!_exec) return;
   if (!document.getElementById('page-test-execute')?.classList.contains('active')) return;
-  try { await API.executions.saveDraft(buildDraftPayload()); } catch { /* drafts are best-effort */ }
+  const payload = buildDraftPayload();
+  if (draftIsEmpty(payload)) return;
+  try { await API.executions.saveDraft(payload); } catch { /* drafts are best-effort */ }
 }
 
 // ── Sticky header ─────────────────────────────────────────────────────────────
@@ -1692,8 +1699,12 @@ function signBlockedHtml() {
 
 // ── Setup coverage overview (which setups still need performing) ──────────────
 // A setup is "performed" once it has a signed execution in this version (any
-// result); "in progress" if it has a saved draft or recorded marks this session;
-// otherwise "not performed". Lets the tester see and jump to remaining setups.
+// result); "in progress" only once at least one of its steps has a recorded mark
+// (a bare draft with no marks — e.g. from just opening the setup — is not "in
+// progress"); otherwise "not performed". This mirrors the version view exactly
+// (lib/rollup.js draftMarkStatus): the two must agree on what counts as started.
+// The current session's marks live in bySetup[setupId].stepState, seeded from any
+// saved draft, so draft marks are already reflected here.
 function setupStatus(setupId) {
   const signed = _exec.execBySetup[setupId];
   if (signed) return { kind: 'result', value: signed };
@@ -1707,7 +1718,6 @@ function setupStatus(setupId) {
     if (results.every(r => r === 'NOT_TESTED')) return { kind: 'result', value: 'NOT_TESTED' };
     return { kind: 'progress' };
   }
-  if (_exec.draftSetups.has(setupId)) return { kind: 'progress' };
   return { kind: 'none' };
 }
 
