@@ -50,28 +50,36 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // ── Drafts (in-progress, unsigned step results) ───────────────────────────────
-// Drafts live in their own collection so they never affect executions, coverage,
-// reports or the audit trail. One draft per (versionTest, setup, user); evidence
-// is not part of a draft — only step results + notes/summary/deviations.
+// Drafts stay out of the formal record — they never touch signed executions, the
+// PDF report or the audit trail. But they are *shared*: one draft per
+// (versionTest, setup), which any user can open and continue, and which the live
+// version view reads to show In progress / Blocked (see lib/rollup.js). Whoever
+// eventually signs becomes the recorded performer, regardless of who edited the
+// draft. `userId` on the row records only the last editor. Evidence is not part
+// of a draft — only step results + notes/summary/deviations.
 
-// GET /api/executions/drafts?versionTestId=xxx — this user's drafts for a vt
+// GET /api/executions/drafts?versionTestId=xxx — the shared drafts for a vt
 router.get('/drafts', requireAuth, (req, res) => {
   const { versionTestId } = req.query;
   if (!versionTestId) return res.status(400).json({ error: 'versionTestId required' });
-  const drafts = db.executionDrafts.findAll({ versionTestId, userId: req.user.id });
+  const drafts = db.executionDrafts.findAll({ versionTestId });
   res.json(drafts);
 });
 
-// PUT /api/executions/draft — upsert this user's draft for (versionTest, setup)
+// PUT /api/executions/draft — upsert the shared draft for (versionTest, setup)
 router.put('/draft', requireAuth, (req, res) => {
   const { versionTestId, setupId, stepResults, summary, deviations } = req.body;
   if (!versionTestId) return res.status(400).json({ error: 'versionTestId required' });
 
-  const filter = { versionTestId, userId: req.user.id, setupId: setupId || null };
-  const existing = db.executionDrafts.findOne(filter);
+  // One shared draft per (versionTest, setup). Collapse any legacy per-user
+  // duplicates (from before drafts were shared) into that single row.
+  const matches = db.executionDrafts.findAll({ versionTestId, setupId: setupId || null });
+  const existing = matches[0];
+  for (let i = 1; i < matches.length; i++) db.executionDrafts.delete(matches[i].id);
+
   const payload = {
     versionTestId,
-    userId: req.user.id,
+    userId: req.user.id,   // last editor
     setupId: setupId || null,
     stepResults: Array.isArray(stepResults) ? stepResults : [],
     summary: summary || '',
@@ -186,10 +194,11 @@ router.post('/', requireAuth, (req, res) => {
   // Auto-sign as EXECUTED (the per-verification "Verified By" signature)
   const sig = sign(req.user.id, ex.id, 'EXECUTED', req);
 
-  // This run is now a permanent record — drop the in-progress draft (if any)
-  // for this (versionTest, setup, user) so re-opening starts clean.
-  const draft = db.executionDrafts.findOne({ versionTestId, userId: req.user.id, setupId: setupId || null });
-  if (draft) db.executionDrafts.delete(draft.id);
+  // This run is now a permanent record — drop the shared in-progress draft(s)
+  // for this (versionTest, setup) so re-opening starts clean for everyone. All
+  // matches are removed to also clear any legacy per-user duplicate rows.
+  db.executionDrafts.findAll({ versionTestId, setupId: setupId || null })
+    .forEach(d => db.executionDrafts.delete(d.id));
 
   res.status(201).json({ ...ex, signature: sig });
 });

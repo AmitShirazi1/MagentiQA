@@ -166,6 +166,13 @@ click it again (or **Total**) to clear. Below them, a thin **Execution Progress*
 bar stacks the statuses into one segmented chart, with a small *“% complete · %
 passed · % failed”* label at its left edge (hover any segment for its count).
 
+**In Progress** and **Blocked** reflect work that's under way but not yet signed:
+a verification counts as **In Progress** as soon as someone records a step in an
+unsigned run, and as **Blocked** if any recorded step is marked *Blocked* (a
+blocker outranks in-progress work). Because these come from the shared draft
+(see [Running a verification](#10-running-a-verification)), anyone viewing the
+version sees them, and they clear the moment the run is signed to a final verdict.
+
 A collapsible **Default Setup** panel sits at the top of the page. This is the
 standard test environment and technician-screen configuration that applies to
 every verification in the version unless a specific test states otherwise, and is
@@ -349,6 +356,14 @@ verification you want to run.
    and its **Tester Name** column becomes your name — which is what reappears in an
    exported tracker.
 4. You can **bulk-sign** several executions at once.
+
+Your marks, notes and deviations **autosave continuously** as an in-progress
+draft, so you can leave and pick up where you left off. Drafts are **shared**: a
+colleague can continue a run you started (and vice versa), and whoever finally
+signs is recorded as the performer. Until it's signed, the verification shows as
+**In Progress** on the version and dashboard — or **Blocked** if you've marked any
+step *Blocked* — so a blocker is visible to the whole team while you sort it out.
+Signing turns the draft into the permanent, e-signed execution and clears it.
 
 Each signature is an HMAC over the user, entity, timestamp and meaning, so any
 later tampering with the record is detectable. An execution's overall result rolls

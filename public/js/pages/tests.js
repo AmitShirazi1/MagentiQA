@@ -1082,7 +1082,8 @@ async function renderTestExecute(params = {}) {
     // Software version is derived from the version this verification belongs to
     // (not entered by hand) — recorded on the execution for the audit trail.
     const version = await API.projects.getVersion(projectId, versionId).catch(() => null);
-    // In-progress drafts (per setup) saved by this user on an earlier visit.
+    // Shared in-progress drafts (per setup) for this verification — any user may
+    // have started or edited them; the signer becomes the recorded performer.
     const drafts = await API.executions.drafts(versionTestId).catch(() => []);
 
     // Remember this verification so the dashboard can offer "jump back in".
